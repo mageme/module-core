@@ -1,0 +1,44 @@
+@mageme-emblem-size: 20px;
+@mageme-emblem-image: url(../images/mageme.svg);
+@mageme-emblem-image-dark: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 199 300"><g fill="%231c1c1c"><polygon points="24.78 299.83 198.9 150 163.83 149.86 24.78 299.83"/><polygon points="174.6 0.17 0.48 150 35.55 150.14 174.6 0.17"/><polygon points="24.78 0.17 198.9 150 163.83 150.14 24.78 0.17"/><polygon points="174.6 299.83 0.48 150 35.55 149.86 174.6 299.83"/></g></svg>');
+
+.mageme-emblem(@image: @mageme-emblem-image) {
+  content: "";
+  background-image: @image;
+  background-size: @mageme-emblem-size @mageme-emblem-size;
+  background-repeat: no-repeat;
+  display: inline-block;
+  width: @mageme-emblem-size;
+  height: @mageme-emblem-size;
+  vertical-align: middle;
+}
+
+li[data-ui-id*="menu-mageme-"] {
+  &.level-1 {
+    strong > span {
+      &:before {
+        .mageme-emblem();
+        margin-right: 7px;
+        margin-left: -.2rem;
+        float: left;
+      }
+    }
+  }
+}
+
+.config-nav-block.mageme-extensions {
+  .admin__page-nav-title strong {
+    display: inline-flex;
+    align-items: center;
+
+    &:before {
+      .mageme-emblem(@mageme-emblem-image-dark);
+      margin-right: 8px;
+      flex: 0 0 auto;
+    }
+  }
+}
+
+.mageme-mark-as-read {
+  float: right;
+}

@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * MageMe
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the MageMe.com license that is
+ * available through the world-wide-web at this URL:
+ * https://mageme.com/license
+ *
+ * Copyright (c) MageMe (https://mageme.com)
+ */
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="config">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="module" type="moduleType" minOccurs="1" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="moduleType">
+        <xs:sequence>
+            <xs:element name="section" type="sectionType" minOccurs="0" maxOccurs="1"/>
+            <xs:element name="license" type="licenseType" minOccurs="0" maxOccurs="1"/>
+        </xs:sequence>
+        <xs:attribute name="name" type="moduleNameType" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="sectionType">
+        <xs:attribute name="name" type="sectionNameType" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="licenseType">
+        <xs:sequence>
+            <xs:element name="code" type="codeType" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="section" type="sectionNameType" use="required"/>
+        <xs:attribute name="tier" use="required">
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value="pro"/>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:complexType name="codeType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="platform" type="platformType" use="required"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:simpleType name="moduleNameType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[A-Z][A-Za-z0-9]+_[A-Z][A-Za-z0-9]+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="sectionNameType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[a-z][a-z0-9_]*"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="platformType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="M2CE"/>
+            <xs:enumeration value="M2EE"/>
+        </xs:restriction>
+    </xs:simpleType>
+</xs:schema>
