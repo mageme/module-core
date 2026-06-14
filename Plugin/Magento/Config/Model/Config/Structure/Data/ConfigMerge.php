@@ -67,7 +67,7 @@ class ConfigMerge
             return $section;
         }
         $moduleName = explode('::', $resource, 2)[0];
-        if (!str_starts_with($moduleName, 'MageMe_')) {
+        if (strpos($moduleName, 'MageMe_') !== 0) {
             return $section;
         }
 

@@ -23,10 +23,11 @@ namespace MageMe\Core\Controller\Adminhtml\Catalog;
 use MageMe\Core\Model\ModuleEcosystem\RemoteCatalog;
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Action\HttpGetActionInterface;
 use Magento\Framework\Controller\Result\JsonFactory;
 
 /** GET /admin/core/catalog/refresh → {ok: bool}. Triggered fire-and-forget by admin JS. */
-class Refresh extends Action
+class Refresh extends Action implements HttpGetActionInterface
 {
     public const ADMIN_RESOURCE = 'MageMe_Core::info';
 

@@ -25,7 +25,7 @@ use MageMe\Core\Model\License\LicenseStatus;
  * intentionally never part of the URL (price is derived server-side from
  * the serial).
  */
-final class CtaLinkBuilder
+class CtaLinkBuilder
 {
     public const DEFAULT_RENEW_URL = 'https://mageme.com/licenses/renew';
 

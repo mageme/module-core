@@ -130,10 +130,13 @@ class LicenseMetaResolver
             ? $entry['license_section']
             : '';
         if ($licenseSection === '') {
-            $this->logger->warning(
-                'MageMe LicenseMetaResolver: missing license_section for licensed suite',
-                ['module' => $coreModuleName]
-            );
+            $ownsAddons = isset($entry['add-ons']) && is_array($entry['add-ons']) && $entry['add-ons'] !== [];
+            if ($ownsAddons) {
+                $this->logger->warning(
+                    'MageMe LicenseMetaResolver: missing license_section for licensed suite',
+                    ['module' => $coreModuleName]
+                );
+            }
             return null;
         }
 

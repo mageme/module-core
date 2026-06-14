@@ -25,12 +25,9 @@ use MageMe\Core\Model\ModuleEcosystem\LicenseMetaResolver;
 use MageMe\Core\Model\ModuleEcosystem\RemoteCatalog;
 use Magento\Framework\Module\Manager as ModuleManager;
 use Magento\Framework\Notification\MessageInterface;
-use Magento\Framework\UrlInterface;
 
 class Activate implements MessageInterface
 {
-    protected UrlInterface $urlBuilder;
-
     protected RemoteCatalog $catalog;
 
     protected LicenseMetaResolver $licenseMetaResolver;
@@ -43,13 +40,11 @@ class Activate implements MessageInterface
     private ?array $unlicensed = null;
 
     public function __construct(
-        UrlInterface         $urlBuilder,
         RemoteCatalog        $catalog,
         LicenseMetaResolver  $licenseMetaResolver,
         GenericLicenseHelper $genericLicenseHelper,
         ModuleManager        $moduleManager
     ) {
-        $this->urlBuilder           = $urlBuilder;
         $this->catalog              = $catalog;
         $this->licenseMetaResolver  = $licenseMetaResolver;
         $this->genericLicenseHelper = $genericLicenseHelper;
@@ -81,19 +76,7 @@ class Activate implements MessageInterface
         if (empty($modules)) {
             return '';
         }
-        $links = [];
-        foreach ($modules as $ownerModuleName => $name) {
-            $meta = $this->licenseMetaResolver->resolveFor($ownerModuleName);
-            if ($meta === null) {
-                continue;
-            }
-            $url = $this->urlBuilder->getUrl(
-                'adminhtml/system_config/edit',
-                ['section' => $meta->licenseSection]
-            );
-            $links[] = sprintf('<a href="%s">%s</a>', $url, $name);
-        }
-        return (string)__('Please activate your license for: ') . implode(', ', $links);
+        return (string)__('Please activate your license for:') . ' ' . implode(', ', $modules);
     }
 
     /**
@@ -119,6 +102,13 @@ class Activate implements MessageInterface
         $result = [];
         foreach ($this->catalog->getAll() as $moduleName => $entry) {
             if (!is_string($moduleName) || !is_array($entry)) {
+                continue;
+            }
+            $hasSection = isset($entry['license_section'])
+                && is_string($entry['license_section'])
+                && $entry['license_section'] !== '';
+            $ownsAddons = isset($entry['add-ons']) && is_array($entry['add-ons']) && $entry['add-ons'] !== [];
+            if (!$hasSection && !$ownsAddons) {
                 continue;
             }
             $meta = $this->licenseMetaResolver->resolveFor($moduleName);

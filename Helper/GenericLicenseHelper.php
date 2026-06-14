@@ -107,10 +107,10 @@ class GenericLicenseHelper
             $result['messages'][] = __('License successfully activated.');
             $result['is_active']  = true;
             $this->saveLicenseConfig($licenseSection, self::PATH_ACTIVE, 1);
-            $this->saveLicenseConfig($licenseSection, self::PATH_ACCESS_TOKEN, $result['access_token']);
+            $this->saveLicenseConfig($licenseSection, self::PATH_ACCESS_TOKEN, (string)($result['access_token'] ?? ''));
             $this->saveLicenseConfig($licenseSection, self::PATH_VERIFIED_TIME, $this->dateTime->gmtTimestamp());
             $this->saveLicenseConfig($licenseSection, self::PATH_VERIFY_ATTEMPT, 0);
-            if ($result['dev']) {
+            if (!empty($result['dev'])) {
                 $this->saveLicenseConfig($licenseSection, self::PATH_DEVELOPMENT, 1);
                 $result['warnings'][] = __('Development license detected. Please do not use for production.');
             }
@@ -138,7 +138,7 @@ class GenericLicenseHelper
 
         if ($result['success']) {
             $result['messages'][] = __('License successfully deactivated!');
-            $this->saveLicenseConfig($licenseSection, self::PATH_ACCESS_TOKEN, $result['access_token']);
+            $this->saveLicenseConfig($licenseSection, self::PATH_ACCESS_TOKEN, (string)($result['access_token'] ?? ''));
         } else {
             $result['is_active'] = false;
         }

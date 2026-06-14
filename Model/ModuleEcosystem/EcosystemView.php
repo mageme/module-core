@@ -20,7 +20,7 @@ declare(strict_types=1);
 
 namespace MageMe\Core\Model\ModuleEcosystem;
 
-final class EcosystemView
+class EcosystemView
 {
     /** @var EcosystemRow */
     public $core;

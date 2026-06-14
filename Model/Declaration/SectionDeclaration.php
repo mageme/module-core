@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace MageMe\Core\Model\Declaration;
 
-final class SectionDeclaration
+class SectionDeclaration
 {
     /** @var string */
     public $name;

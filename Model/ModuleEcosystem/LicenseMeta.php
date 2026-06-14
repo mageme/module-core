@@ -18,7 +18,7 @@ namespace MageMe\Core\Model\ModuleEcosystem;
 /**
  * Resolved license-meta for a suite. Built by LicenseMetaResolver from modules.json catalog.
  */
-final class LicenseMeta
+class LicenseMeta
 {
     /** @var string */
     public $ownerModuleName;

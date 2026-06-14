@@ -2,7 +2,7 @@
     "name": "mageme/module-core",
     "description": "Core foundation module for MageMe extensions providing license management, admin UI infrastructure, and shared utilities",
     "type": "magento2-module",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "license": "proprietary",
     "authors": [
         {
@@ -12,7 +12,13 @@
         }
     ],
     "require": {
-        "php": "~7.4.0||~8.0.0||~8.1.0||~8.2.0||~8.3.0||~8.4.0||~8.5.0"
+        "php": "~7.4.0||~8.0.0||~8.1.0||~8.2.0||~8.3.0||~8.4.0||~8.5.0",
+        "magento/framework": "*",
+        "magento/module-backend": "*",
+        "magento/module-config": "*",
+        "magento/module-store": "*",
+        "magento/module-admin-notification": "*",
+        "psr/log": "*"
     },
     "autoload": {
         "files": [

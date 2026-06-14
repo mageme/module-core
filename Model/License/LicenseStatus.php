@@ -15,7 +15,7 @@ declare(strict_types=1);
 
 namespace MageMe\Core\Model\License;
 
-final class LicenseStatus
+class LicenseStatus
 {
     public const STATE_ACTIVE   = 'active';
     public const STATE_DEV      = 'dev';

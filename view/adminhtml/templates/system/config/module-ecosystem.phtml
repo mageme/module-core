@@ -49,11 +49,11 @@ $subgroupKeyFor = static function (?string $label): string {
     }
     // Match against the lowercased raw label (preserve non-ASCII chars like 'ä' in 'Hyvä').
     $lower = mb_strtolower($label, 'UTF-8');
-    if (str_contains($lower, 'core'))        return 'core';
-    if (str_contains($lower, 'integration')) return 'integrations';
-    if (str_contains($lower, 'breeze'))      return 'breeze';
-    if (str_contains($lower, 'hyva') || str_contains($lower, 'hyvä')) return 'hyva';
-    if (str_contains($lower, 'api'))         return 'api';
+    if (strpos($lower, 'core') !== false)        return 'core';
+    if (strpos($lower, 'integration') !== false) return 'integrations';
+    if (strpos($lower, 'breeze') !== false)      return 'breeze';
+    if (strpos($lower, 'hyva') !== false || strpos($lower, 'hyvä') !== false) return 'hyva';
+    if (strpos($lower, 'api') !== false)         return 'api';
     return 'addons';
 };
 
@@ -69,6 +69,30 @@ $GROUP_ICONS = [
 ];
 
 $monogram = $block->getMonogramTheme($view->core->moduleName);
+
+// Translated labels handed to the inline script so client-side status rendering stays localizable.
+$i18nLabels = [
+    'states' => [
+        'active'   => (string) __('Support & updates active'),
+        'dev'      => (string) __('Development license'),
+        'expired'  => (string) __('Support expired'),
+        'inactive' => (string) __('License inactive'),
+        'unknown'  => (string) __('Checking license…'),
+    ],
+    'nonProduction'       => (string) __('Non-production'),
+    'until'               => (string) __('Until %1'),
+    'since'               => (string) __('Since %1'),
+    'activate'            => (string) __('Activate'),
+    'deactivate'          => (string) __('Deactivate'),
+    'noLicenseHint'       => (string) __('Don\'t have a license?'),
+    'getOne'              => (string) __('Get one'),
+    'connectError'        => (string) __('Can\'t connect to license server.'),
+    'supportExpiredTitle' => (string) __('Support expired'),
+    'supportExpiredBody'  => (string) __('Your support window expired on %1.'),
+    'renewHint'           => (string) __('You can renew it from your account at %1'),
+    'openMyLicenses'      => (string) __('Open my licenses'),
+    'close'               => (string) __('Close'),
+];
 ?>
 <div class="mageme-ecosystem"
      data-mageme-ecosystem
@@ -78,6 +102,7 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
      data-needs-refresh="<?= $block->isCatalogEmpty() ? '1' : '0' ?>"
      data-catalog-refresh-url="<?= $escaper->escapeUrl($block->getCatalogRefreshUrl()) ?>"
      data-ecosystem-render-url="<?= $escaper->escapeUrl($block->getEcosystemRenderUrl()) ?>"
+     data-i18n="<?= $escaper->escapeHtmlAttr(json_encode($i18nLabels)) ?>"
      data-form-type="other"
      data-1p-ignore="true"
      data-lpignore="true"
@@ -123,11 +148,17 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
             : '';
         ?>
         <div class="mageme-ecosystem__actions" data-license-state="<?= $escaper->escapeHtmlAttr($licenseState) ?>">
+            <?php if ($block->isCatalogEmpty()): ?>
+                <span class="mageme-ecosystem__loading" aria-live="polite">
+                    <span class="mageme-ecosystem__spinner" aria-hidden="true"></span>
+                    <span><?= $escaper->escapeHtml(__('Loading…')) ?></span>
+                </span>
+            <?php endif; ?>
             <?php if ($view->docsUrl !== null): ?>
                 <a class="mageme-ecosystem__btn"
                    href="<?= $escaper->escapeUrl($view->docsUrl) ?>"
                    target="_blank" rel="noopener noreferrer">
-                    <?= $ICON_BOOK ?>
+                    <?= /* @noEscape */ $ICON_BOOK ?>
                     <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Docs')) ?></span>
                 </a>
             <?php endif; ?>
@@ -137,7 +168,7 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
                        data-show-on-state="active"
                        href="<?= $escaper->escapeUrl($view->supportUrl) ?>"
                        target="_blank" rel="noopener noreferrer">
-                        <?= $ICON_SUPPORT ?>
+                        <?= /* @noEscape */ $ICON_SUPPORT ?>
                         <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Support')) ?></span>
                     </a>
                     <?php /* Only when online renewal is unavailable — otherwise the Renew CTA below is the single expired-state action (avoids a duplicate --expired button). */ ?>
@@ -148,7 +179,7 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
                            data-expired-date="<?= $escaper->escapeHtmlAttr($supportExpiredDate) ?>"
                            href="<?= $escaper->escapeUrl($view->supportUrl) ?>"
                            target="_blank" rel="noopener noreferrer">
-                            <?= $ICON_SUPPORT_EXPIRED ?>
+                            <?= /* @noEscape */ $ICON_SUPPORT_EXPIRED ?>
                             <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Support expired')) ?></span>
                         </a>
                     <?php endif; ?>
@@ -157,7 +188,7 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
                         class="mageme-ecosystem__btn mageme-ecosystem__btn--activate"
                         data-show-on-state="inactive"
                         data-mageme-activate-cta>
-                    <?= $ICON_ACTIVATE ?>
+                    <?= /* @noEscape */ $ICON_ACTIVATE ?>
                     <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Please activate license')) ?></span>
                 </button>
                 <?php if ($view->renewUrl !== null): ?>
@@ -165,7 +196,7 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
                        data-show-on-state="expired"
                        href="<?= $escaper->escapeUrl($view->renewUrl) ?>"
                        target="_blank" rel="noopener noreferrer">
-                        <?= $ICON_RENEW ?>
+                        <?= /* @noEscape */ $ICON_RENEW ?>
                         <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Renew support & updates')) ?></span>
                     </a>
                 <?php endif; ?>
@@ -177,7 +208,7 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
                    data-mageme-row-tooltip
                    data-description="<?= $escaper->escapeHtmlAttr(__('Unlock the Pro version: advanced features and priority support.')) ?>">
                     <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Upgrade to Pro')) ?></span>
-                    <?= $ICON_GETPRO ?>
+                    <?= /* @noEscape */ $ICON_GETPRO ?>
                 </a>
             <?php endif; ?>
             <?php if ($view->isExpandable()): ?>
@@ -186,7 +217,7 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
                         aria-expanded="<?= $expanded ? 'true' : 'false' ?>"
                         aria-controls="mageme-ecosystem-body-<?= $escaper->escapeHtmlAttr($sectionId) ?>"
                         title="<?= $escaper->escapeHtmlAttr(__('Toggle add-ons')) ?>">
-                    <?= $ICON_CARET ?>
+                    <?= /* @noEscape */ $ICON_CARET ?>
                 </button>
             <?php endif; ?>
         </div>
@@ -219,7 +250,7 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
             : ($row->status === Status::NOT_INSTALLED ? 'not-installed' : 'installed');
         ?>
         <div class="mageme-ecosystem__row" data-status="<?= $escaper->escapeHtmlAttr($filterStatus) ?>">
-            <span class="<?= $escaper->escapeHtmlAttr($rowIconClass) ?>" aria-hidden="true"><?= $iconHtml ?></span>
+            <span class="<?= $escaper->escapeHtmlAttr($rowIconClass) ?>" aria-hidden="true"><?= /* @noEscape */ $iconHtml ?></span>
             <span class="mageme-ecosystem__row-name">
                 <span class="mageme-ecosystem__row-label"><?= $escaper->escapeHtml($row->name) ?></span>
                 <?php if ($row->description !== null && $row->description !== ''): ?>
@@ -240,7 +271,7 @@ $monogram = $block->getMonogramTheme($view->core->moduleName);
             </span>
             <span class="<?= $escaper->escapeHtmlAttr($versionClass) ?>"><?= $escaper->escapeHtml($versionDisplay) ?></span>
             <span class="<?= $escaper->escapeHtmlAttr($statusClass) ?>">
-                <?php if ($showCheck): ?><?= $ICON_CHECK ?><?php endif; ?>
+                <?php if ($showCheck): ?><?= /* @noEscape */ $ICON_CHECK ?><?php endif; ?>
                 <span class="mageme-ecosystem__row-status-text"><?= $escaper->escapeHtml($statusText) ?></span>
             </span>
         </div>
@@ -388,7 +419,6 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                 </div>
                 <div class="mageme-ecosystem__group">
                     <div class="mageme-ecosystem__group-label mageme-ecosystem__group-label--core">
-                        <?= $GROUP_ICONS['core'] ?>
                         <span class="mageme-ecosystem__group-text"><?= $escaper->escapeHtml(__('CORE')) ?></span>
                     </div>
                     <div class="mageme-ecosystem__subgroup-rows">
@@ -415,7 +445,6 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                             <?php $subKey = $subgroupKeyFor((string) $label); ?>
                             <div class="mageme-ecosystem__subgroup">
                                 <div class="mageme-ecosystem__sub-label mageme-ecosystem__sub-label--<?= $escaper->escapeHtmlAttr($subKey) ?>">
-                                    <?= $GROUP_ICONS[$subKey] ?? $GROUP_ICONS['_default'] ?>
                                     <span class="mageme-ecosystem__group-text"><?= $escaper->escapeHtml($label) ?></span>
                                     <span class="mageme-ecosystem__group-count"><?= count($rows) ?></span>
                                 </div>
@@ -690,6 +719,29 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
             font-weight: 400;
             line-height: 1.4;
             margin: 0;
+        }
+
+        .mageme-ecosystem__loading {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #5b6470;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .mageme-ecosystem__spinner {
+            width: 16px;
+            height: 16px;
+            flex: none;
+            border: 2px solid #d1d5db;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: mageme-eco-spin 0.7s linear infinite;
+        }
+        @keyframes mageme-eco-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+            .mageme-ecosystem__spinner { animation: none; }
         }
 
         /* Animated body — modern grid-template-rows technique (no JS height calc, no max-height hack) */
@@ -1128,20 +1180,6 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
             margin-bottom: 8px;
             text-transform: uppercase;
         }
-        .mageme-ecosystem__group-label .mageme-ecosystem__group-icon,
-        .mageme-ecosystem__sub-label .mageme-ecosystem__group-icon {
-            width: 14px;
-            height: 14px;
-            color: #5b6470;
-            flex: none;
-        }
-        /* Per-group accent colors on the section-label icon (matches row-tile color) */
-        .mageme-ecosystem__group-label--core         .mageme-ecosystem__group-icon { color: #047857; }
-        .mageme-ecosystem__sub-label--addons         .mageme-ecosystem__group-icon { color: #c9590c; }
-        .mageme-ecosystem__sub-label--integrations  .mageme-ecosystem__group-icon { color: #0f8773; }
-        .mageme-ecosystem__sub-label--breeze         .mageme-ecosystem__group-icon { color: #1f6fe8; }
-        .mageme-ecosystem__sub-label--hyva           .mageme-ecosystem__group-icon { color: #6d28d9; }
-        .mageme-ecosystem__sub-label--api            .mageme-ecosystem__group-icon { color: #be185d; }
         .mageme-ecosystem__group-text { letter-spacing: inherit; }
         .mageme-ecosystem__group-count {
             color: #aab1bb;
@@ -1457,6 +1495,20 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                 const header = root.querySelector('.mageme-ecosystem__header');
                 if (!btn || !body || !header) return;
 
+                const I18N_DEFAULTS = {
+                    until: 'Until %1', since: 'Since %1', nonProduction: 'Non-production',
+                    activate: 'Activate', deactivate: 'Deactivate',
+                    noLicenseHint: "Don't have a license?", getOne: 'Get one',
+                    connectError: "Can't connect to license server.",
+                    supportExpiredTitle: 'Support expired',
+                    supportExpiredBody: 'Your support window expired on %1.',
+                    renewHint: 'You can renew it from your account at %1',
+                    openMyLicenses: 'Open my licenses', close: 'Close'
+                };
+                let I18N = I18N_DEFAULTS;
+                try { I18N = { ...I18N_DEFAULTS, ...JSON.parse(root.getAttribute('data-i18n') || '{}') }; } catch (e) { /* keep defaults */ }
+                const STATE_TEXT = { active: '', dev: '', expired: '', inactive: '', unknown: '', ...(I18N.states || {}) };
+
                 const apply = (open) => {
                     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
                     body.setAttribute('aria-hidden', open ? 'false' : 'true');
@@ -1502,19 +1554,22 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                         e.stopPropagation();
                         const expiredDate = expiredBtn.getAttribute('data-expired-date') || '';
                         const renewUrl = 'https://mageme.com/licenses/';
+                        const renewLink = `<a href="${renewUrl}" target="_blank" rel="noopener noreferrer">mageme.com/licenses/</a>`;
+                        const bodyExpired = I18N.supportExpiredBody.replace('%1', `<strong>${expiredDate}</strong>`);
+                        const bodyRenew = I18N.renewHint.replace('%1', renewLink);
                         const html = `
                             <div class="mageme-modal__icon" aria-hidden="true">
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                             </div>
-                            <h2 class="mageme-modal__title">Support expired</h2>
-                            <div class="mageme-modal__body">Your support window expired on <strong>${expiredDate}</strong>.<br>You can renew it from your account at <a href="${renewUrl}" target="_blank" rel="noopener noreferrer">mageme.com/licenses/</a>.</div>
+                            <h2 class="mageme-modal__title">${I18N.supportExpiredTitle}</h2>
+                            <div class="mageme-modal__body">${bodyExpired}<br>${bodyRenew}</div>
                         `;
                         require(['swal'], (Swal) => {
                             Swal.fire({
                                 html,
                                 showCancelButton: true,
-                                confirmButtonText: 'Open my licenses',
-                                cancelButtonText: 'Close',
+                                confirmButtonText: I18N.openMyLicenses,
+                                cancelButtonText: I18N.close,
                                 reverseButtons: true,
                                 buttonsStyling: false,
                                 customClass: {
@@ -1587,11 +1642,11 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                     };
 
                     const STATE_LABELS = {
-                        active:   { primary: 'Support & updates active', secondary: (d) => d ? `Until ${d}` : '' },
-                        dev:      { primary: 'Development license',       secondary: () => 'Non-production' },
-                        expired:  { primary: 'Support expired',           secondary: (d) => d ? `Since ${d}` : '' },
-                        inactive: { primary: 'License inactive',          secondary: () => '' },
-                        unknown:  { primary: 'Checking license…',         secondary: () => '' }
+                        active:   { primary: STATE_TEXT.active,   secondary: (d) => d ? I18N.until.replace('%1', d) : '' },
+                        dev:      { primary: STATE_TEXT.dev,      secondary: () => I18N.nonProduction },
+                        expired:  { primary: STATE_TEXT.expired,  secondary: (d) => d ? I18N.since.replace('%1', d) : '' },
+                        inactive: { primary: STATE_TEXT.inactive, secondary: () => '' },
+                        unknown:  { primary: STATE_TEXT.unknown,  secondary: () => '' }
                     };
                     const STATES = Object.keys(STATE_LABELS);
 
@@ -1617,12 +1672,12 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                             const serialEmpty = !serialInput.value.trim();
                             if (statusData.state === 'inactive' && getOneUrl && serialEmpty && !statusData.isActive) {
                                 secondary.textContent = '';
-                                secondary.appendChild(document.createTextNode("Don't have a license? "));
+                                secondary.appendChild(document.createTextNode(I18N.noLicenseHint + ' '));
                                 const getLink = document.createElement('a');
                                 getLink.href = getOneUrl;
                                 getLink.target = '_blank';
                                 getLink.rel = 'noopener noreferrer';
-                                getLink.textContent = 'Get one';
+                                getLink.textContent = I18N.getOne;
                                 secondary.appendChild(getLink);
                             } else {
                                 secondary.textContent = labels.secondary(formatDate(statusData.validUntil));
@@ -1631,7 +1686,7 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                         license.setAttribute('data-active', statusData.isActive ? '1' : '0');
                         if (statusData.isActive) serialInput.setAttribute('readonly', '');
                         else serialInput.removeAttribute('readonly');
-                        if (toggleLabel) toggleLabel.textContent = statusData.isActive ? 'Deactivate' : 'Activate';
+                        if (toggleLabel) toggleLabel.textContent = statusData.isActive ? I18N.deactivate : I18N.activate;
                         const actions = root.querySelector('.mageme-ecosystem__actions');
                         if (actions) actions.setAttribute('data-license-state', statusData.state);
                         const expiredHeaderBtn = root.querySelector('[data-mageme-support-expired]');
@@ -1679,7 +1734,7 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                             renderMessages(data);
                             if (data.status) applyState(data.status);
                         } catch (_) {
-                            renderMessages({ errors: ["Can't connect to license server."] });
+                            renderMessages({ errors: [I18N.connectError] });
                         } finally {
                             document.body.dispatchEvent(new Event('processStop', { bubbles: true }));
                         }

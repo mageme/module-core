@@ -20,7 +20,7 @@ declare(strict_types=1);
 
 namespace MageMe\Core\Model\ModuleEcosystem;
 
-final class Status
+class Status
 {
     public const UP_TO_DATE        = 'up_to_date';
     public const UPDATE_AVAILABLE  = 'update_available';

@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace MageMe\Core\Model\Declaration;
 
-final class LicenseDeclaration
+class LicenseDeclaration
 {
     /** @var string */
     public $section;

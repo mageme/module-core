@@ -26,10 +26,10 @@ class StatusMapper
             $validUntil = null;
         }
         return new LicenseStatus(
-            state: $this->resolveState($isActive, $isDev, $validUntil),
-            isActive: $isActive,
-            isDev: $isDev,
-            validUntil: $validUntil
+            $this->resolveState($isActive, $isDev, $validUntil),
+            $isActive,
+            $isDev,
+            $validUntil
         );
     }
 
@@ -43,10 +43,10 @@ class StatusMapper
             $validUntil = null;
         }
         return new LicenseStatus(
-            state: $this->resolveState($isActive, $isDev, $validUntil),
-            isActive: $isActive,
-            isDev: $isDev,
-            validUntil: $validUntil
+            $this->resolveState($isActive, $isDev, $validUntil),
+            $isActive,
+            $isDev,
+            $validUntil
         );
     }
 

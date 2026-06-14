@@ -1,4 +1,15 @@
 <?php
+/**
+ * MageMe
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the MageMe.com license that is
+ * available through the world-wide-web at this URL:
+ * https://mageme.com/license
+ *
+ * Copyright (c) MageMe (https://mageme.com)
+ **/
 
 declare(strict_types=1);
 
@@ -36,6 +47,9 @@ class AssetHelper
             // phpcs:ignore Magento2.Functions.DiscouragedFunction
             $content = file_get_contents($file);
         } catch (Exception $e) {
+            throw new LocalizedException(__('Unable to read file: %1', $filePath));
+        }
+        if ($content === false) {
             throw new LocalizedException(__('Unable to read file: %1', $filePath));
         }
         return $content;

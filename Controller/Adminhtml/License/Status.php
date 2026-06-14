@@ -21,11 +21,12 @@ use MageMe\Core\Model\License\LicenseStatus;
 use MageMe\Core\Model\License\StatusCache;
 use MageMe\Core\Model\ModuleEcosystem\LicenseMetaResolver;
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Action\HttpGetActionInterface;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
-class Status extends AbstractAction
+class Status extends AbstractAction implements HttpGetActionInterface
 {
     public const ADMIN_RESOURCE = 'MageMe_Core::license_view';
 
