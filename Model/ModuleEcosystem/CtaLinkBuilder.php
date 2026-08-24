@@ -29,18 +29,62 @@ class CtaLinkBuilder
 {
     public const DEFAULT_RENEW_URL = 'https://mageme.com/licenses/renew';
 
+    /** utm_content values — where in the panel the click came from. */
+    public const PLACEMENT_HEADER = 'header_button';
+    public const PLACEMENT_PLATE  = 'plate_button';
+    public const PLACEMENT_ROW    = 'row_';
+
     /**
      * @param array<string, mixed> $entry catalog entry from modules.json
-     * @return array{renewUrl: string|null, getProUrl: string|null, purchaseUrl: string|null, buyUrl: string|null}
+     * @param bool $panelExpandedByDefault whether the panel's server-rendered default is expanded
+     * @return array{renewUrl: string|null, getProUrl: string|null, proPlateUrl: string|null, purchaseUrl: string|null, buyUrl: string|null}
      */
-    public function build(array $entry, ?LicenseInfo $license): array
+    public function build(array $entry, ?LicenseInfo $license, bool $panelExpandedByDefault = false): array
     {
         return [
             'renewUrl'    => $this->renewUrl($entry, $license),
-            'getProUrl'   => $this->getProUrl($entry, $license),
+            'getProUrl'   => $this->proUrl($entry, $license, $panelExpandedByDefault, self::PLACEMENT_HEADER),
+            'proPlateUrl' => $this->proUrl($entry, $license, $panelExpandedByDefault, self::PLACEMENT_PLATE),
             'purchaseUrl' => $this->purchaseUrl($entry),
             'buyUrl'      => $this->buyUrl($entry, $license),
         ];
+    }
+
+    /**
+     * Per-row upgrade link for an uninstalled paid add-on. Same destination as the plate CTA,
+     * tagged with the row it was clicked from so the nine "Requires Pro" rows are measurable
+     * against each other.
+     *
+     * Add-ons have no pages of their own — they are all part of Pro. What differs per row is
+     * the section of the suite page it opens: the add-on's catalog `url` carries the anchor of
+     * its feature block, so a row lands on the capability it sells instead of the page top.
+     *
+     * @param array<string, mixed> $entry core catalog entry (the suite's purchase_url lives there)
+     * @param array<string, mixed> $addonEntry the add-on's own catalog entry, when available
+     */
+    public function proUrlForRow(
+        array $entry,
+        ?LicenseInfo $license,
+        bool $panelExpandedByDefault,
+        string $addonModuleName,
+        array $addonEntry = []
+    ): ?string {
+        $slug = strtolower((string)preg_replace(
+            '/[^a-z0-9]+/i',
+            '_',
+            (string)preg_replace('/^MageMe_/', '', $addonModuleName)
+        ));
+        $target = isset($addonEntry['url']) && is_string($addonEntry['url']) && $addonEntry['url'] !== ''
+            ? $addonEntry['url']
+            : null;
+
+        return $this->proUrl(
+            $entry,
+            $license,
+            $panelExpandedByDefault,
+            self::PLACEMENT_ROW . $slug,
+            $target
+        );
     }
 
     /**
@@ -63,6 +107,7 @@ class CtaLinkBuilder
             'utm_source'   => 'admin',
             'utm_medium'   => 'ecosystem',
             'utm_campaign' => 'buylicense',
+            'utm_content'  => 'license_hint_pricing_page',
         ]);
     }
 
@@ -97,6 +142,7 @@ class CtaLinkBuilder
             'utm_source'   => 'admin',
             'utm_medium'   => 'ecosystem',
             'utm_campaign' => 'buylicense',
+            'utm_content'  => 'license_hint_one_click_buy',
         ]);
     }
 
@@ -143,9 +189,19 @@ class CtaLinkBuilder
      * resolved — not installed or disabled) → show.
      *
      * @param array<string, mixed> $entry
+     * @param bool $panelExpandedByDefault tags the click with the panel's SERVER default.
+     *             It is not the state at click time — localStorage can flip the panel first.
+     * @param string $placement which of the panel's upgrade surfaces was clicked.
+     * @param string|null $overrideUrl destination for this placement — the suite's purchase page
+     *                                 is used when the placement has none of its own.
      */
-    private function getProUrl(array $entry, ?LicenseInfo $license): ?string
-    {
+    private function proUrl(
+        array $entry,
+        ?LicenseInfo $license,
+        bool $panelExpandedByDefault,
+        string $placement,
+        ?string $overrideUrl = null
+    ): ?string {
         if ($license !== null && $license->supported) {
             return null;
         }
@@ -158,12 +214,33 @@ class CtaLinkBuilder
         if ($url === '') {
             return null;
         }
+        if ($overrideUrl !== null) {
+            $url = $overrideUrl;
+        }
+        [$url, $fragment] = $this->splitFragment($url);
         $separator = strpos($url, '?') === false ? '?' : '&';
 
         return $url . $separator . http_build_query([
             'utm_source'   => 'admin',
             'utm_medium'   => 'ecosystem',
             'utm_campaign' => 'getpro',
-        ]);
+            'utm_content'  => $placement,
+            'utm_term'     => $panelExpandedByDefault ? 'default_expanded' : 'default_collapsed',
+        ]) . $fragment;
+    }
+
+    /**
+     * Query parameters belong before the fragment — appended after it they end up inside the
+     * anchor and neither the anchor nor the utm tags survive.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function splitFragment(string $url): array
+    {
+        $hash = strpos($url, '#');
+
+        return $hash === false
+            ? [$url, '']
+            : [substr($url, 0, $hash), substr($url, $hash)];
     }
 }

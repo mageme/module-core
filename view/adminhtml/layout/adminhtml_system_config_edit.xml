@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!--
+    The ecosystem panel only ever renders inside Stores > Configuration, so its stylesheet and
+    behaviour are loaded here rather than on every admin page.
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <css src="MageMe_Core::css/module-ecosystem.css"/>
+        <script src="MageMe_Core::js/module-ecosystem.js"/>
+    </head>
+</page>

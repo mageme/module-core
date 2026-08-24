@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace MageMe\Core\Helper;
 
+use Exception;
 use MageMe\Core\Model\License\LicenseStatus;
 use MageMe\Core\Model\License\StatusCache;
 use MageMe\Core\Model\License\StatusMapper;
@@ -41,6 +42,13 @@ use Magento\Framework\Stdlib\DateTime\DateTime;
 class GenericLicenseHelper
 {
     public const URL = 'https://license.mageme.com';
+
+    /** Identifies our own traffic in the license-server logs, and to any WAF in front of it. */
+    public const USER_AGENT = 'MageMe-Core (+https://mageme.com)';
+
+    /** A user is waiting on the round trip, but not forever. */
+    public const CONNECT_TIMEOUT_S = 5;
+    public const REQUEST_TIMEOUT_S = 10;
 
     public const ACTION_ACTIVATE   = 'activate';
     public const ACTION_DEACTIVATE = 'deactivate';
@@ -73,6 +81,14 @@ class GenericLicenseHelper
     protected $statusMapper;
     /** @var StatusCache */
     protected $statusCache;
+
+    /**
+     * True once sendRequest() has an answer from the license server itself. A timeout, a gateway
+     * error or a body that is not a license answer leaves it false.
+     *
+     * @var bool
+     */
+    private $lastRequestAnswered = false;
 
     public function __construct(
         Curl                      $curl,
@@ -186,6 +202,17 @@ class GenericLicenseHelper
     {
         $params = $this->getRequestParams(self::ACTION_VERIFY, $licenseSection, $ownerModuleName);
         $result = $this->sendRequest($params);
+
+        // An unanswered request carries no verdict on the license. Storing it as one would switch
+        // a working license off, and isActive() then keeps this method from ever asking again — the
+        // merchant would have to re-enter the serial by hand. The stored state stands, marked stale
+        // so the caller can say the check did not go through.
+        if (!$this->lastRequestAnswered) {
+            $stored = $this->getStatus($licenseSection);
+
+            return new LicenseStatus($stored->state, $stored->isActive, $stored->isDev, $stored->validUntil, true);
+        }
+
         $status = $this->statusMapper->fromApiResponse($result);
 
         $this->saveLicenseConfig($licenseSection, self::PATH_ACTIVE, $status->isActive ? 1 : 0);
@@ -251,8 +278,21 @@ class GenericLicenseHelper
         $this->config->saveConfig($licenseSection . $pathId, $value, 'default');
     }
 
+    /**
+     * A JSON array decodes to a PHP list; the license server always answers with an object.
+     * (array_is_list() is PHP 8.1 and this module still supports 7.4.)
+     *
+     * @param array<mixed> $value
+     */
+    private function isList(array $value): bool
+    {
+        return array_keys($value) === range(0, count($value) - 1);
+    }
+
     private function sendRequest(array $params): array
     {
+        $this->lastRequestAnswered = false;
+
         $result = [
             'success'   => false,
             'is_active' => false,
@@ -262,19 +302,45 @@ class GenericLicenseHelper
         ];
 
         $this->curl->setOption(CURLOPT_RETURNTRANSFER, true);
-        $this->curl->setOption(CURLOPT_FOLLOWLOCATION, true);
-        $this->curl->setOption(
-            CURLOPT_USERAGENT,
-            'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.2.16) Gecko/20110319 Firefox/3.6.16'
-        );
-        $this->curl->post(static::URL, $params);
+        // The body carries the serial and the access token, so a redirect must not be followed:
+        // whatever host the response names would receive them.
+        $this->curl->setOption(CURLOPT_FOLLOWLOCATION, false);
+        $this->curl->setOption(CURLOPT_CONNECTTIMEOUT, self::CONNECT_TIMEOUT_S);
+        $this->curl->setOption(CURLOPT_TIMEOUT, self::REQUEST_TIMEOUT_S);
+        $this->curl->setOption(CURLOPT_USERAGENT, self::USER_AGENT);
+
+        try {
+            $this->curl->post(static::URL, $params);
+        } catch (Exception $e) {
+            $result['errors'][] = __('Could not reach the license server. Please try again.');
+            return $result;
+        }
+
+        $status = (int)$this->curl->getStatus();
+        if ($status < 200 || $status > 299) {
+            $result['errors'][] = __('Unexpected license server response.');
+            return $result;
+        }
+
         $response = json_decode($this->curl->getBody(), true);
 
-        if (!$response) {
+        if (!is_array($response) || $response === [] || $this->isList($response)) {
             $result['errors'][] = __('Unexpected license server response.');
-        } else {
-            $result = array_merge($result, $response);
+
+            return $result;
         }
+
+        $this->lastRequestAnswered = true;
+
+        $result = array_merge($result, $response);
+        // The response owns these keys once merged, and callers append to them — a scalar in any of
+        // them would turn "License activated." into a fatal.
+        foreach (['messages', 'warnings', 'errors'] as $key) {
+            if (!is_array($result[$key])) {
+                $result[$key] = [];
+            }
+        }
+        $result['success'] = !empty($result['success']);
 
         return $result;
     }

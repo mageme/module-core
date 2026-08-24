@@ -9,6 +9,11 @@
          * A function to dynamically add a script to the DOM if it doesn't already exist,
          * and execute a callback function once the script has loaded.
          *
+         * On a load failure or a timeout the loading placeholder is torn down instead of left in
+         * place: without this a 404, a CSP block or a stalled request would leave the queued
+         * callbacks pending forever and every later addScript for the same name blocked behind them,
+         * with nothing in the console. Now the failure is logged and a later call may retry.
+         *
          * @param {string} objName - The name of the object to check or create in the global window scope.
          * @param {string} scriptSrc - The source URL of the script to be added to the DOM.
          * @param {function} callbackFunc - The callback function to be executed after the script has loaded.
@@ -19,17 +24,30 @@
                 window[objName] = {'-isLoading': (callback) => callbacks.push(callback)};
                 const script = document.createElement('script');
                 script.src = scriptSrc;
+                const fail = (reason) => {
+                    console.error('MageMe.loader: ' + reason + ' ' + scriptSrc);
+                    callbacks = [];
+                    if (window[objName] && window[objName]['-isLoading']) {
+                        delete window[objName];
+                    }
+                };
+                const timer = setTimeout(() => fail('timed out loading'), 15000);
                 script.onload = () => {
+                    clearTimeout(timer);
                     callbacks.map(callback => callback());
                     callbacks = [];
+                };
+                script.onerror = () => {
+                    clearTimeout(timer);
+                    fail('failed to load');
                 };
                 document.head.append(script);
 
             }
-            if (window[objName]['-isLoading']) {
+            if (window[objName] && window[objName]['-isLoading']) {
                 window[objName]['-isLoading'](() => MageMe.loader.addScript(objName, scriptSrc, callbackFunc))
             }
-            if (!window[objName]['-isLoading'] && callbackFunc) {
+            if (window[objName] && !window[objName]['-isLoading'] && callbackFunc) {
                 callbackFunc();
             }
         },

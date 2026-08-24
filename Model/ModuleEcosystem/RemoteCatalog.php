@@ -39,6 +39,8 @@ class RemoteCatalog
     public const CACHE_GROUP     = CacheTypeConfig::TYPE_IDENTIFIER;
     public const CACHE_TAG       = 'extensions';
     public const FETCH_TIMEOUT_S = 5;
+    /** Vendor_Module — the only key shape a real catalog has. */
+    private const MODULE_NAME_PATTERN = '/^[A-Za-z][A-Za-z0-9]*_[A-Za-z][A-Za-z0-9]*$/';
 
     /** @var CacheInterface */
     private $cache;
@@ -81,16 +83,26 @@ class RemoteCatalog
         return isset($all[$moduleName]) ? $all[$moduleName] : [];
     }
 
-    /** Stale cache preserved on failure. */
+    /**
+     * Stale cache preserved on failure.
+     *
+     * The cache has no lifetime, so whatever lands here stays until the next successful refresh —
+     * which is why an error page that happens to be valid JSON must never get that far. A non-2xx
+     * status and a payload that is not a map of module entries are both refused.
+     */
     public function refresh(): bool
     {
         try {
             $this->curl->setOption(CURLOPT_TIMEOUT, self::FETCH_TIMEOUT_S);
             $this->curl->get(self::API_URL);
-            $body    = $this->curl->getBody();
-            $decoded = json_decode((string)$body, true);
-            if (!is_array($decoded)) {
-                $this->logger->warning('MageMe RemoteCatalog refresh: response not a JSON object');
+            $status = (int)$this->curl->getStatus();
+            if ($status < 200 || $status > 299) {
+                $this->logger->warning('MageMe RemoteCatalog refresh: HTTP ' . $status);
+                return false;
+            }
+            $decoded = json_decode((string)$this->curl->getBody(), true);
+            if (!$this->isCatalog($decoded)) {
+                $this->logger->warning('MageMe RemoteCatalog refresh: response is not a module catalog');
                 return false;
             }
             $this->cache->save(json_encode($decoded), self::CACHE_KEY, [self::CACHE_TAG]);
@@ -100,5 +112,31 @@ class RemoteCatalog
             $this->logger->info('MageMe RemoteCatalog refresh failed: ' . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * A catalog is a non-empty map of Vendor_Module => non-empty entry. Anything else — a list, a
+     * scalar, an empty object, an error document such as {"error": {"message": "..."}} — is refused
+     * rather than cached over good data. Entry contents are deliberately NOT schema-checked: the
+     * catalog gains fields over time, and rejecting the whole payload over an unknown key would
+     * break every panel the day a new field ships.
+     *
+     * @param mixed $decoded
+     */
+    private function isCatalog($decoded): bool
+    {
+        if (!is_array($decoded) || $decoded === []) {
+            return false;
+        }
+        foreach ($decoded as $moduleName => $entry) {
+            if (!is_string($moduleName) || preg_match(self::MODULE_NAME_PATTERN, $moduleName) !== 1) {
+                return false;
+            }
+            if (!is_array($entry) || $entry === []) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -18,6 +18,16 @@ Foundation module for all [MageMe extensions](https://mageme.com) for Magento 2.
 - **Shared utilities** — locale-aware date and time formatting, client IP detection through proxies, static asset content inlining, area detection helpers, and a self-sizing admin multiselect form field.
 - **Bundled JS libraries** — SweetAlert2 and Tingle modal, shared by other MageMe modules' storefront UI to avoid duplication.
 
+## Data sent with the news feed
+
+The daily news-feed request carries the list of enabled MageMe modules with their versions, plus an irreversible installation identifier derived from the store's base URL and installation date. It tells us which extensions are actually in use and lets announcements be limited to those extensions. The store domain, customer data, and order data are never sent.
+
+To turn it off:
+
+```bash
+bin/magento config:set mageme/feed/send_modules 0
+```
+
 ## Requirements
 
 - Magento 2.4.x (Open Source or Commerce)

@@ -1,0 +1,1096 @@
+/**
+ * MageMe Ecosystem panel — the admin block injected into every MageMe config section.
+ * Loaded on Stores > Configuration only (layout adminhtml_system_config_edit); every rule is
+ * scoped to .mageme-ecosystem so nothing bleeds into the surrounding admin form.
+ *
+ * Plain CSS in a .less file on purpose: no variables or mixins are needed, and keeping the
+ * extension .less lets it go through the same pipeline as the rest of the admin styles.
+ */
+
+/* Scoped to .mageme-ecosystem to avoid bleed — Inter / monogram redesign.
+   Outer card uses the mockup's light-grey "page area" so internal white sub-cards
+   (license row, module rows) stand out. */
+.mageme-ecosystem {
+    position: relative;
+    container-type: inline-size;
+    container-name: mageme-ecosystem;
+    background: #f2f3f5;
+    border: 1px solid #eaecef;
+    border-radius: 16px;
+    padding: 24px;
+    margin: 0 0 20px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', Arial, sans-serif;
+    color: #1f2430;
+    overflow: hidden;
+}
+.mageme-ecosystem__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    cursor: pointer;
+    user-select: none;
+}
+.mageme-ecosystem__header .mageme-ecosystem__btn { cursor: pointer; user-select: auto; }
+.mageme-ecosystem__brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+/* No tile, and no box either: a 56px box round a 26px mark left 15px of slack on
+   each side, pushing the mark off the panel's left vertical and doubling the gap
+   to the title. The mark now sizes itself. */
+.mageme-ecosystem__monogram {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+}
+/* Sized to the title line it labels; centred on the text block as a whole. */
+.mageme-ecosystem__logo-mark {
+    width: 26px;
+    height: 26px;
+    display: block;
+    background-color: #5b6470;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+.mageme-ecosystem__title-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.mageme-ecosystem__title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+}
+.mageme-ecosystem__title {
+    color: #1f2430;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.mageme-ecosystem__offer-icon { flex: none; width: 14px; height: 14px; }
+.mageme-ecosystem__update-pill { cursor: pointer; }
+.mageme-ecosystem__update-pill:focus { outline: none; }
+.mageme-ecosystem__update-pill:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.mageme-ecosystem__update-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #5b6470;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+.mageme-ecosystem__update-pill:hover { color: #1f2430; }
+.mageme-ecosystem__update-pill:hover .mageme-ecosystem__update-arrow { color: #5b6470; }
+.mageme-ecosystem__update-arrow { flex: none; width: 13px; height: 13px; color: #8a9099; }
+
+/* Action group */
+.mageme-ecosystem__actions { display: flex; align-items: center; gap: 8px; }
+.mageme-ecosystem .mageme-ecosystem__actions [data-show-on-state] { display: none !important; }
+.mageme-ecosystem .mageme-ecosystem__actions[data-license-state="active"]   [data-show-on-state~="active"],
+.mageme-ecosystem .mageme-ecosystem__actions[data-license-state="dev"]      [data-show-on-state~="dev"],
+.mageme-ecosystem .mageme-ecosystem__actions[data-license-state="expired"]  [data-show-on-state~="expired"],
+.mageme-ecosystem .mageme-ecosystem__actions[data-license-state="inactive"] [data-show-on-state~="inactive"] {
+    display: inline-flex !important;
+}
+.mageme-ecosystem__btn,
+.mageme-ecosystem__toggle,
+.mageme-ecosystem__license-btn,
+.mageme-ecosystem__license-serial-wrap { box-sizing: border-box; }
+
+/* Docs / Support / Activate CTA — rounded rectangle (8px), mockup-aligned.
+   !important on display + flex props because Magento admin's `a { display: block; }` overrides. */
+.mageme-ecosystem .mageme-ecosystem__btn {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    color: #3a4150;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    text-decoration: none;
+    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    white-space: nowrap;
+    box-shadow: none;
+}
+.mageme-ecosystem .mageme-ecosystem__btn:hover {
+    background: #f4f5f7;
+    border-color: #d1d5db;
+    color: #1f2430;
+    text-decoration: none;
+}
+.mageme-ecosystem .mageme-ecosystem__btn:active { background: #ebedf0; }
+.mageme-ecosystem .mageme-ecosystem__btn:focus { outline: none; }
+.mageme-ecosystem .mageme-ecosystem__btn:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+/* Colour is spent only where the merchant has to act:
+     amber   = needs action (expired / not activated — a 6px dot, never a filled pill)
+     blue    = the action itself (Renew, Activate — outlined, one per panel)
+     neutral = everything that is simply fine */
+.mageme-ecosystem .mageme-ecosystem__btn--expired {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+.mageme-ecosystem .mageme-ecosystem__btn--expired:hover {
+    background: #fecaca;
+    border-color: #f87171;
+    color: #7f1d1d;
+}
+.mageme-ecosystem .mageme-ecosystem__btn--expired .mageme-ecosystem__btn-icon { color: #991b1b; }
+.mageme-ecosystem .mageme-ecosystem__btn--expired:hover .mageme-ecosystem__btn-icon { color: #7f1d1d; }
+/* Renewing support fixes something that expired, so the button carries the same amber
+   the expired dot uses — not the blue that means "buy Pro". */
+.mageme-ecosystem .mageme-ecosystem__btn--renew {
+    background: #fff7ed;
+    border-color: #f0c088;
+    color: #92400e;
+}
+.mageme-ecosystem .mageme-ecosystem__btn--renew:hover {
+    background: #ffedd5;
+    border-color: #d97706;
+    color: #7c3208;
+}
+.mageme-ecosystem .mageme-ecosystem__btn--renew .mageme-ecosystem__btn-icon { color: #b45309; }
+.mageme-ecosystem .mageme-ecosystem__btn--renew:hover .mageme-ecosystem__btn-icon { color: #92400e; }
+/* Upgrade to Pro = outlined upsell. Same blue family as Renew/Activate, one weight
+   down: filled blue is a licence action, outlined blue is the upsell. */
+/* Get Pro carries the offer plate's own gradient, so the header button and the plate
+   further down read as one thing rather than two unrelated invitations. */
+.mageme-ecosystem .mageme-ecosystem__btn--getpro {
+    background: linear-gradient(100deg, #3d4763 0%, #2b3348 100%);
+    border-color: transparent;
+    color: #ffffff;
+}
+.mageme-ecosystem .mageme-ecosystem__btn--getpro:hover {
+    background: linear-gradient(100deg, #4a5474 0%, #343d55 100%);
+    border-color: transparent;
+    color: #ffffff;
+}
+.mageme-ecosystem .mageme-ecosystem__btn--getpro .mageme-ecosystem__btn-icon { color: #c7d2e8; }
+/* Activate license CTA — the one filled action, in the same blue as Renew. */
+.mageme-ecosystem .mageme-ecosystem__btn--activate {
+    background: #0b5ea8;
+    border-color: #0b5ea8;
+    color: #ffffff;
+}
+.mageme-ecosystem .mageme-ecosystem__btn--activate:hover {
+    background: #094c88;
+    border-color: #094c88;
+    color: #ffffff;
+}
+.mageme-ecosystem .mageme-ecosystem__btn--activate .mageme-ecosystem__btn-icon { color: #ffffff; }
+.mageme-ecosystem .mageme-ecosystem__btn--activate:hover .mageme-ecosystem__btn-icon { color: #ffffff; }
+@keyframes mageme-pulse-attention {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(185, 28, 28, 0); }
+    30% { box-shadow: 0 0 0 4px rgba(185, 28, 28, 0.25); }
+}
+.mageme-ecosystem__license-serial.is-attention {
+    animation: mageme-pulse-attention 1.4s ease-out 2;
+    border-color: #991b1b !important;
+}
+.mageme-ecosystem .mageme-ecosystem__btn-icon {
+    flex: 0 0 auto;
+    color: #94a3b8;
+    display: inline-block !important;
+    vertical-align: middle;
+}
+/* Secondary buttons only — Docs / Support / Get Pro icons darken on hover.
+   Primary filled CTAs (Renew, Activate) keep white icons; Get Pro keeps indigo. */
+.mageme-ecosystem .mageme-ecosystem__btn:not(.mageme-ecosystem__btn--renew):not(.mageme-ecosystem__btn--activate):not(.mageme-ecosystem__btn--getpro):hover .mageme-ecosystem__btn-icon { color: #1c1c1e; }
+/* Get Pro: the icon follows the label, not the generic darken-on-hover. */
+.mageme-ecosystem .mageme-ecosystem__btn--getpro:hover .mageme-ecosystem__btn-icon { color: #1e40af; }
+.mageme-ecosystem .mageme-ecosystem__btn-label {
+    display: inline-block !important;
+    line-height: 1;
+    letter-spacing: -0.005em;
+    white-space: nowrap;
+}
+
+/* Caret toggle — rounded rectangle (8px), mockup-aligned */
+.mageme-ecosystem__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #3a4150;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    box-shadow: none;
+}
+.mageme-ecosystem__toggle:hover { background: #f4f5f7; border-color: #d1d5db; color: #1f2430; }
+.mageme-ecosystem__toggle:active { background: #ebedf0; }
+.mageme-ecosystem__toggle:focus { outline: none; }
+.mageme-ecosystem__toggle:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.mageme-ecosystem__toggle .mageme-ecosystem__caret {
+    display: block;
+    transition: transform 0.18s ease;
+}
+.mageme-ecosystem__toggle[aria-expanded="false"] .mageme-ecosystem__caret { transform: rotate(180deg); }
+
+.mageme-ecosystem__tagline {
+    color: #5b6470;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.mageme-ecosystem__loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #5b6470;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.mageme-ecosystem__spinner {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border: 2px solid #d1d5db;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: mageme-eco-spin 0.7s linear infinite;
+}
+@keyframes mageme-eco-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .mageme-ecosystem__spinner { animation: none; }
+}
+
+/* Animated body — modern grid-template-rows technique (no JS height calc, no max-height hack) */
+.mageme-ecosystem__body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    margin-top: 0;
+}
+.mageme-ecosystem__body.is-expanded {
+    grid-template-rows: 1fr;
+    margin-top: 16px;
+}
+.mageme-ecosystem__body-inner {
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 0;
+    border-top: 0 solid transparent;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 200ms ease 60ms,
+                transform 240ms cubic-bezier(0.22, 0.61, 0.36, 1) 40ms,
+                padding-top 280ms ease,
+                border-top-color 200ms ease;
+}
+.mageme-ecosystem__body.is-expanded .mageme-ecosystem__body-inner {
+    opacity: 1;
+    transform: translateY(0);
+    padding-top: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+    .mageme-ecosystem__body,
+    .mageme-ecosystem__body-inner { transition: none; }
+}
+
+.mageme-ecosystem__group { margin-bottom: 24px; }
+.mageme-ecosystem__group:last-child { margin-bottom: 0; }
+.mageme-ecosystem__group + .mageme-ecosystem__group {
+    margin-top: 24px;
+}
+
+.mageme-ecosystem__license {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+.mageme-ecosystem__license-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+/* Key glyph seated inside the serial field, left of the input. */
+.mageme-ecosystem__license-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: #64748b;
+    flex: none;
+}
+.mageme-ecosystem__license-icon svg { width: 16px; height: 16px; }
+/* Input + Deactivate button + status — single row */
+.mageme-ecosystem__license-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+/* Serial chip — wrapper carries the bg + border-radius; input is transparent inside.
+   Copy button sits on the right edge of the chip. */
+.mageme-ecosystem__license-serial-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 1 300px;
+    min-width: 220px;
+    height: 36px;
+    padding: 0 6px 0 12px;
+    background: #ffffff;
+    border: 1px solid #dfe2e7;
+    border-radius: 6px;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+/* Focus is a full ring rather than a single edge. */
+.mageme-ecosystem__license-serial-wrap:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+/* Input itself becomes transparent — wrapper holds the visual chip.
+   !important on background/border/color: Magento admin's `input[type="text"]` rules win otherwise. */
+.mageme-ecosystem .mageme-ecosystem__license-serial {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    height: 38px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 none !important;
+    border-radius: 0 !important;
+    color: #1f2430 !important;
+    font: 600 14px/1 ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace !important;
+    letter-spacing: 0.6px;
+    text-align: center;
+    box-shadow: none !important;
+}
+.mageme-ecosystem .mageme-ecosystem__license-serial::placeholder { color: #5b6470 !important; letter-spacing: 0; font-family: inherit; font-weight: 400; }
+.mageme-ecosystem .mageme-ecosystem__license-serial:focus { outline: none; box-shadow: none !important; }
+/* Copy-to-clipboard button — ghost icon on the right of the chip */
+.mageme-ecosystem__license-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: 0 none;
+    border-radius: 6px;
+    color: #64748b;
+    cursor: pointer;
+    flex: none;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+.mageme-ecosystem__license-copy:hover { background: #ebedf0; color: #1f2430; }
+.mageme-ecosystem__license-copy:focus { outline: none; }
+.mageme-ecosystem__license-copy:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.mageme-ecosystem__license-copy-icon { display: inline-flex; }
+.mageme-ecosystem__license-copy-icon--check { display: none; color: #047857; }
+.mageme-ecosystem__license-copy.is-copied { color: #047857; background: #ecfdf5; }
+.mageme-ecosystem__license-copy.is-copied .mageme-ecosystem__license-copy-icon--copy { display: none; }
+.mageme-ecosystem__license-copy.is-copied .mageme-ecosystem__license-copy-icon--check { display: inline-flex; }
+/* Deactivate / Activate — secondary button, rounded rectangle (8px) per mockup */
+.mageme-ecosystem__license-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    color: #3a4150;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    flex: none;
+    box-shadow: none;
+}
+.mageme-ecosystem__license-btn-icon { display: inline-flex; color: #94a3b8; flex: none; }
+.mageme-ecosystem__license-btn:hover { background: #f4f5f7; border-color: #d1d5db; }
+.mageme-ecosystem__license-btn:active { background: #ebedf0; }
+.mageme-ecosystem__license-btn:focus { outline: none; }
+.mageme-ecosystem__license-btn:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.mageme-ecosystem__license[data-active="0"] .mageme-ecosystem__license-btn {
+    background: #0b5ea8;
+    border-color: #0b5ea8;
+    color: #ffffff;
+}
+.mageme-ecosystem__license[data-active="0"] .mageme-ecosystem__license-btn:hover {
+    background: #094c88;
+    border-color: #094c88;
+    color: #ffffff;
+}
+.mageme-ecosystem__license[data-active="0"] .mageme-ecosystem__license-btn-icon { color: #ffffff; }
+.mageme-ecosystem__license[data-active="1"] .mageme-ecosystem__license-btn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+.mageme-ecosystem__license[data-active="1"] .mageme-ecosystem__license-btn:hover .mageme-ecosystem__license-btn-icon {
+    color: #991b1b;
+}
+.mageme-ecosystem__license-status-group {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-left: auto;
+    flex: none;
+    flex-wrap: nowrap;
+}
+.mageme-ecosystem__license-active-pill {
+    display: none;
+    align-items: flex-start;
+    gap: 8px;
+    color: #3a4150;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+}
+.mageme-ecosystem__license-status-group:has(.mageme-ecosystem__license-status.is-expired) .mageme-ecosystem__license-active-pill {
+    display: inline-flex;
+}
+.mageme-ecosystem__license-status {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #3a4150;
+    font-size: 13px;
+}
+.mageme-ecosystem__license-status-icon { display: none; flex: none; }
+/* A state is a 6px dot: green when the licence is live, amber when it needs the
+   merchant to act, grey for anything informational. */
+.mageme-ecosystem__license-active-pill::before,
+.mageme-ecosystem__license-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #c3c9d1;
+    flex: none;
+    margin-top: 4px;
+}
+.mageme-ecosystem__license-active-pill::before,
+.mageme-ecosystem__license-status.is-active::before { background: #16a34a; }
+.mageme-ecosystem__license-status.is-expired::before,
+.mageme-ecosystem__license-status.is-inactive::before { background: #d97706; }
+.mageme-ecosystem__license-status.is-unknown::before { background: #e3e6ea; }
+.mageme-ecosystem__license-status.is-unknown { color: #94a3b8; }
+.mageme-ecosystem__license-status-text {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.1;
+    text-align: left;
+}
+.mageme-ecosystem__license-status-primary { font-size: 13px; font-weight: 600; color: #3a4150; }
+.mageme-ecosystem__license-status-secondary { font-size: 12px; font-weight: 400; color: #8a9099; }
+.mageme-ecosystem__license-status-secondary:empty { display: none; }
+/* "No licence yet" hint living in the inactive status pill's secondary
+   sub-line — same blue as the Upgrade to Pro CTA it leads to. */
+.mageme-ecosystem__license-status.is-inactive .mageme-ecosystem__license-status-secondary a {
+    color: #1d4ed8;
+    font-weight: 600;
+    text-decoration: none;
+}
+.mageme-ecosystem__license-status.is-inactive .mageme-ecosystem__license-status-secondary a:hover {
+    color: #1e40af;
+    text-decoration: underline;
+}
+.mageme-ecosystem__license-messages {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.mageme-ecosystem__license-messages:not(:empty) { display: flex; }
+.mageme-ecosystem__license-messages > div {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.mageme-ecosystem__license-messages > div > svg {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+}
+.mageme-ecosystem__license-messages .is-success {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #047857;
+}
+.mageme-ecosystem__license-messages .is-warning {
+    background: #fff8e1;
+    border-color: #fde68a;
+    color: #92400e;
+}
+.mageme-ecosystem__license-messages .is-error {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #7f1d1d;
+}
+
+/* Filter pills — Apple Settings vibe; soft fills, no heavy black */
+.mageme-ecosystem__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.mageme-ecosystem__filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 12px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    color: #5b6470;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    user-select: none;
+}
+.mageme-ecosystem__filter:hover {
+    background: #f4f5f7;
+    border-color: #d1d5db;
+    color: #1f2430;
+}
+/* The active filter takes the colour the offer plate starts with, so the two read
+   as one material rather than as a grey chip beside a blue block. */
+.mageme-ecosystem__filter.is-active {
+    background: #4a5878;
+    border-color: transparent;
+    color: #ffffff;
+}
+/* Updates filter — blue-tinted when there is at least one update */
+.mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]) {
+    background: #dae2f7;
+    color: #2f4372;
+}
+.mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]):hover {
+    background: #ccd7f2;
+    color: #24345c;
+}
+.mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]).is-active {
+    background: #35508f;
+    border-color: transparent;
+    color: #ffffff;
+}
+.mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]) .mageme-ecosystem__filter-count {
+    background: rgba(47, 67, 114, 0.18);
+    color: #2f4372;
+}
+.mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]).is-active .mageme-ecosystem__filter-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+.mageme-ecosystem__filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 18px;
+    padding: 0 7px;
+    background: #f1f2f5;
+    color: #7a8390;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+.mageme-ecosystem__filter.is-active .mageme-ecosystem__filter-count {
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+.mageme-ecosystem__filter-count:empty { display: none; }
+
+/* Filter behaviour: hide rows whose data-status doesn't match the active filter.
+   "Installed" filter matches both fully installed AND update-available rows
+   (an update-available module IS still installed). */
+.mageme-ecosystem__body[data-filter="update"] .mageme-ecosystem__row:not([data-status="update"]) { display: none; }
+.mageme-ecosystem__body[data-filter="installed"] .mageme-ecosystem__row[data-status="not-installed"] { display: none; }
+.mageme-ecosystem__body[data-filter="not-installed"] .mageme-ecosystem__row:not([data-status="not-installed"]) { display: none; }
+/* Hide subgroup wrappers + CORE group with no remaining matching rows */
+.mageme-ecosystem__body[data-filter="update"] .mageme-ecosystem__subgroup:not(:has(.mageme-ecosystem__row[data-status="update"])),
+.mageme-ecosystem__body[data-filter="update"] .mageme-ecosystem__group:not(.mageme-ecosystem__group--addons):not(:has(.mageme-ecosystem__row[data-status="update"])) { display: none; }
+.mageme-ecosystem__body[data-filter="installed"] .mageme-ecosystem__subgroup:not(:has(.mageme-ecosystem__row:not([data-status="not-installed"]))),
+.mageme-ecosystem__body[data-filter="installed"] .mageme-ecosystem__group:not(.mageme-ecosystem__group--addons):not(:has(.mageme-ecosystem__row:not([data-status="not-installed"]))) { display: none; }
+.mageme-ecosystem__body[data-filter="not-installed"] .mageme-ecosystem__subgroup:not(:has(.mageme-ecosystem__row[data-status="not-installed"])),
+.mageme-ecosystem__body[data-filter="not-installed"] .mageme-ecosystem__group:not(.mageme-ecosystem__group--addons):not(:has(.mageme-ecosystem__row[data-status="not-installed"])) { display: none; }
+/* Hide filter pills with zero count entirely */
+.mageme-ecosystem__filter[data-empty="true"] { display: none; }
+/* The upgrade CTA lives with the inventory it sells, not in the header. It shows on
+   the full list and on the Not installed view — the two places where the merchant is
+   looking at what the suite offers — and stays out of the Installed / Updates views. */
+.mageme-ecosystem__offer-cta {
+    position: relative;
+    display: none;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    background: linear-gradient(100deg, #3d4763 0%, #2b3348 100%);
+    border-radius: 10px;
+    overflow: hidden;
+}
+/* Drifting node network. Nothing is pre-wired: links appear while two nodes are close
+   and fade as they part, which is what makes the field read as alive. */
+.mageme-ecosystem__offer-net {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.45) 38%, #000 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.45) 38%, #000 100%);
+}
+.mageme-ecosystem__offer-cta > *:not(.mageme-ecosystem__offer-net) { position: relative; }
+.mageme-ecosystem__body[data-filter="all"] .mageme-ecosystem__offer-cta,
+.mageme-ecosystem__body[data-filter="not-installed"] .mageme-ecosystem__offer-cta { display: flex; }
+/* One paid CTA per screen. While the plate is on view it owns the upgrade — it sits next
+   to the add-ons it sells — so the header button steps back and returns for the collapsed
+   panel and the Installed / Updates views, where the plate is not rendered. */
+.mageme-ecosystem:has(.mageme-ecosystem__body.is-expanded[data-filter="all"] .mageme-ecosystem__offer-cta) .mageme-ecosystem__header .mageme-ecosystem__btn--getpro,
+.mageme-ecosystem:has(.mageme-ecosystem__body.is-expanded[data-filter="not-installed"] .mageme-ecosystem__offer-cta) .mageme-ecosystem__header .mageme-ecosystem__btn--getpro {
+    display: none !important;
+}
+.mageme-ecosystem__offer-cta-icon { flex: none; color: #d6dae1; }
+.mageme-ecosystem__offer-cta-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+}
+.mageme-ecosystem__offer-cta-title {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+.mageme-ecosystem__offer-cta-list {
+    color: #e4e7ec;
+    font-size: 12px;
+    line-height: 1.25;
+}
+.mageme-ecosystem__offer-cta .mageme-ecosystem__btn { margin-left: auto; }
+/* A translucent fill lifts the label off the drifting network without turning the
+   button into a solid box. */
+.mageme-ecosystem .mageme-ecosystem__offer-cta .mageme-ecosystem__btn--getpro {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.42);
+    color: #ffffff;
+}
+.mageme-ecosystem .mageme-ecosystem__offer-cta .mageme-ecosystem__btn--getpro:hover {
+    background: rgba(255, 255, 255, 0.24);
+    border-color: rgba(255, 255, 255, 0.75);
+    color: #ffffff;
+}
+.mageme-ecosystem .mageme-ecosystem__offer-cta .mageme-ecosystem__btn--getpro .mageme-ecosystem__btn-icon { color: inherit; }
+/* Bento — each subgroup has its own label + 2-col rows grid */
+.mageme-ecosystem__group--addons { display: block; }
+.mageme-ecosystem__subgroup { margin-top: 24px; }
+.mageme-ecosystem__subgroup:first-child { margin-top: 0; }
+.mageme-ecosystem__subgroup-rows {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+    row-gap: 8px;
+    align-items: start;
+}
+.mageme-ecosystem__group-label,
+.mageme-ecosystem__sub-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 13px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: #5b6470;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+.mageme-ecosystem__group-text { letter-spacing: inherit; }
+.mageme-ecosystem__label-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 15px;
+    height: 15px;
+    color: inherit;
+}
+.mageme-ecosystem__label-icon .mageme-ecosystem__group-icon {
+    width: 15px;
+    height: 15px;
+    color: inherit;
+}
+/* The Hyva mark is a filled path — dial it back to the weight of the stroked glyphs. */
+.mageme-ecosystem__sub-label--hyva .mageme-ecosystem__label-icon { opacity: 0.72; }
+.mageme-ecosystem__group-count {
+    color: #aab1bb;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.8px;
+    text-transform: none;
+}
+.mageme-ecosystem__group-count::before {
+    content: "·";
+    margin-right: 5px;
+    color: #aab1bb;
+    font-weight: 600;
+}
+/* Hyva sub-section under ADD-ONS */
+.mageme-ecosystem__sub-divider {
+    height: 1px;
+    background: #eef0f3;
+    margin: 14px 0 12px;
+}
+/* No outline: the white fill on the panel's grey surface separates the card, and
+   26 card edges were the panel's main source of horizontal rules. */
+.mageme-ecosystem__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 10px 12px;
+    min-height: 0;
+}
+.mageme-ecosystem .mageme-ecosystem__row-info {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 14px;
+    height: 14px;
+    margin-left: 6px;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 50% !important;
+    box-shadow: none !important;
+    color: #94a3b8;
+    font: 700 9px/1 -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+    cursor: help;
+    vertical-align: -2px;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    user-select: none;
+}
+.mageme-ecosystem .mageme-ecosystem__row-info:hover,
+.mageme-ecosystem .mageme-ecosystem__row-info:focus,
+.mageme-ecosystem .mageme-ecosystem__row-info:active {
+    color: #3c3c43;
+    border-color: #3c3c43 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+.mageme-ecosystem-tooltip {
+    position: fixed;
+    z-index: 10000;
+    max-width: 320px;
+    padding: 10px 14px;
+    background: #29334B;
+    color: #ffffff;
+    border: 0 none;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18), 0 1px 3px rgba(15, 23, 42, 0.10);
+    font-size: 12.5px;
+    line-height: 1.45;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    pointer-events: none;
+}
+.mageme-ecosystem-tooltip.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+.mageme-ecosystem-tooltip::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow-x, 50%);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+}
+.mageme-ecosystem-tooltip[data-placement="top"]::after {
+    top: 100%;
+    border-top-color: #29334B;
+}
+.mageme-ecosystem-tooltip[data-placement="bottom"]::after {
+    bottom: 100%;
+    border-bottom-color: #29334B;
+}
+.mageme-ecosystem__row-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.mageme-ecosystem__row-version { flex: none; justify-self: auto; }
+.mageme-ecosystem__row-status { flex: none; }
+.mageme-ecosystem__row-name {
+    color: #1f2430;
+    font-size: 13.5px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+/* The name is the only flexible cell in the row — it truncates,
+   while the ? badge and tier pills hold their intrinsic size. */
+.mageme-ecosystem__row-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mageme-ecosystem__row-version {
+    display: inline-flex;
+    align-items: center;
+    background: #f1f2f5;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 3px 8px;
+    color: #5b6470;
+    font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    justify-self: end;
+}
+.mageme-ecosystem__row-version--missing {
+    color: #94a3b8;
+    background: transparent;
+    border-color: transparent;
+}
+
+.mageme-ecosystem__row-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    box-sizing: border-box;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 92px;
+}
+.mageme-ecosystem__row-status--up { color: #047857; font-weight: 500; }
+/* Plain text, like every other value in this column — a filled box here read as a
+   control and competed with the version chip next to it. */
+/* The panel's system blue (same one focus rings use) — deliberately NOT the Get Pro blue,
+   so "there is an update" never reads as "buy something". */
+.mageme-ecosystem__row-status--update {
+    color: #2563eb;
+    font-weight: 600;
+}
+.mageme-ecosystem__row-status--missing { color: #64748b; }
+/* Amber, the panel's "needs action" colour — same one the expired licence uses. */
+.mageme-ecosystem__row-status--superseded { color: #92400e; font-weight: 500; cursor: help; }
+.mageme-ecosystem__row-status--superseded:focus { outline: none; }
+.mageme-ecosystem__row-status--superseded:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.mageme-ecosystem__row-status a { color: inherit; text-decoration: none; }
+.mageme-ecosystem__row-status a:hover { text-decoration: underline; }
+.mageme-ecosystem__row-status-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.mageme-ecosystem__row-status-link:hover { color: #2f4372; }
+.mageme-ecosystem__row-status-arrow { flex: none; color: #a5adb8; }
+.mageme-ecosystem__row-status-link:hover .mageme-ecosystem__row-status-arrow { color: inherit; }
+.mageme-ecosystem__check-icon { flex: none; }
+
+/* Tier badges — refined "code-editor token" style: rounded square (not pill) + 1px border for depth */
+.mageme-ecosystem__tier {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: 18px;
+    padding: 0 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    line-height: 1;
+}
+/* Tier badges classify what a module IS, so they carry no colour — colour is
+   reserved for state. One shared neutral; the label does the distinguishing. */
+.mageme-ecosystem__tier--pro,
+.mageme-ecosystem__tier--hyva,
+.mageme-ecosystem__tier--breeze {
+    background: #f1f2f5;
+    color: #475569;
+    border: 1px solid #d7dbe0;
+}
+/* On a module you do not have, the status already says "Requires Pro". The badge
+   stays on installed paid modules, where it is the only tier mark. */
+.mageme-ecosystem__row[data-status="not-installed"] .mageme-ecosystem__tier--pro { display: none; }
+
+.mageme-modal {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Open Sans', 'Helvetica Neue', Arial, sans-serif !important;
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 16px !important;
+    padding: 32px 28px 24px !important;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+    width: 460px !important;
+    max-width: calc(100vw - 32px) !important;
+}
+.mageme-modal__container {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+.mageme-modal__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 18px;
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    border-radius: 50%;
+    color: #991b1b;
+}
+.mageme-modal__title {
+    text-align: center;
+    color: #1c1c1e;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 14px;
+    line-height: 1.2;
+}
+.mageme-modal__body {
+    text-align: center;
+    color: #3c3c43;
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0;
+}
+.mageme-modal__body strong {
+    color: #991b1b;
+    font-weight: 700;
+}
+.mageme-modal__body a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+.mageme-modal__body a:hover { text-decoration: underline; }
+.mageme-modal__actions {
+    margin: 24px 0 0 !important;
+    gap: 8px;
+}
+.mageme-modal__btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 20px !important;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 999px !important;
+    color: #3c3c43;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    box-shadow: none !important;
+}
+.mageme-modal__btn:hover {
+    background: #ececec;
+    border-color: #d1d5db;
+}
+.mageme-modal__btn:focus { outline: none !important; }
+.mageme-modal__btn:focus-visible { outline: 2px solid #2563eb !important; outline-offset: 2px; }
+.mageme-modal__btn--primary {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+}
+.mageme-modal__btn--primary:hover {
+    background: #1d4ed8 !important;
+    border-color: #1d4ed8 !important;
+}
+
+/* Below ~860px a two-column list leaves the name about 150px and nearly every module
+   truncates, so the list drops to one column and the header stacks. The panel measures
+   itself: the admin menu takes up to 350px, so window width says nothing about it. */
+@container mageme-ecosystem (max-width: 860px) {
+    .mageme-ecosystem__subgroup-rows {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .mageme-ecosystem__license-status-group {
+        margin-left: 0;
+    }
+}
+@container mageme-ecosystem (max-width: 700px) {
+    .mageme-ecosystem__header {
+        flex-wrap: wrap;
+    }
+    .mageme-ecosystem__brand {
+        flex: 1 1 100%;
+    }
+    .mageme-ecosystem__actions {
+        flex: 1 1 100%;
+        justify-content: flex-end;
+    }
+    .mageme-ecosystem__license-row {
+        gap: 12px;
+    }
+}

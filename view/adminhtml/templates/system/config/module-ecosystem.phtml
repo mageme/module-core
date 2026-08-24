@@ -21,23 +21,64 @@ $sectionId = $block->getSectionId();
 $expanded  = $view->expandedByDefault;
 $logoUrl   = $block->getLogoUrl();
 
+// The renewal link carries the serial, so it belongs to the same ACL as the serial field itself.
+// Without it the block below falls back to the plain "Support expired" button.
+$renewUrl = $block->canViewLicense() ? $view->renewUrl : null;
+
+// The standing Pro offer: add-ons the merchant does not own yet. Gated on the same CTA the
+// header shows, so it can never advertise an upgrade the panel does not offer, and silenced
+// once a licence is on file next to an installed Pro module — that merchant has already paid,
+// whatever the support window says. The signature keys the collapse memory, so a genuinely
+// new add-on earns one fresh showing instead of staying hidden behind an old dismissal.
+$hasProInstalled = false;
+foreach ($view->addons as $offerRow) {
+    if ($offerRow->isInstalled() && in_array('pro', $offerRow->tiers, true)) {
+        $hasProInstalled = true;
+        break;
+    }
+}
+$hasLicence = $view->license !== null
+    && ($view->license->isActive || (string) $view->license->serial !== '');
+$offersPro  = $view->getProUrl !== null && !($hasLicence && $hasProInstalled);
+
+$proOffer = [];
+$proOfferNames = [];
+if ($offersPro) {
+    foreach ($view->addons as $offerRow) {
+        if (!$offerRow->isInstalled() && in_array('pro', $offerRow->tiers, true)) {
+            $proOffer[] = $offerRow->moduleName;
+            $proOfferNames[] = $offerRow->name;
+        }
+    }
+}
+sort($proOffer);
+$proOfferCount  = count($proOffer);
+$offerSignature = $proOfferCount === 0 ? '' : substr(sha1(implode(',', $proOffer)), 0, 8);
+
 // Inline SVG icons (trusted constants — output raw, not via $escaper)
-// Apple SF-style outlined icons (v7 Apple mockup feel) — book-open + life-buoy
+// Inline SVG icons: Phosphor — filled book for docs, regular-weight headset for support.
 // NOTE: kept on single lines (no heredoc) — Magento's HTML minifier strips newlines
 // inside PHP blocks in production mode and breaks heredoc syntax otherwise.
-$ICON_BOOK = '<svg class="mageme-ecosystem__btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>';
+$ICON_BOOK = '<svg class="mageme-ecosystem__btn-icon" width="20" height="20" viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M232 48h-72a40 40 0 0 0-32 16a40 40 0 0 0-32-16H24a8 8 0 0 0-8 8v144a8 8 0 0 0 8 8h72a24 24 0 0 1 24 24a8 8 0 0 0 16 0a24 24 0 0 1 24-24h72a8 8 0 0 0 8-8V56a8 8 0 0 0-8-8M96 192H32V64h64a24 24 0 0 1 24 24v112a39.8 39.8 0 0 0-24-8m128 0h-64a39.8 39.8 0 0 0-24 8V88a24 24 0 0 1 24-24h64ZM160 88h40a8 8 0 0 1 0 16h-40a8 8 0 0 1 0-16m48 40a8 8 0 0 1-8 8h-40a8 8 0 0 1 0-16h40a8 8 0 0 1 8 8m0 32a8 8 0 0 1-8 8h-40a8 8 0 0 1 0-16h40a8 8 0 0 1 8 8"/></svg>';
 
-$ICON_SUPPORT = '<svg class="mageme-ecosystem__btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="M4.93 4.93l4.24 4.24"/><path d="M14.83 9.17l4.24-4.24"/><path d="M14.83 14.83l4.24 4.24"/><path d="M9.17 14.83l-4.24 4.24"/></svg>';
+$ICON_SUPPORT = '<svg class="mageme-ecosystem__btn-icon" width="20" height="20" viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M201.89 54.66A103.43 103.43 0 0 0 128.79 24H128A104 104 0 0 0 24 128v56a24 24 0 0 0 24 24h16a24 24 0 0 0 24-24v-40a24 24 0 0 0-24-24H40.36a88.12 88.12 0 0 1 150.18-54.07A87.4 87.4 0 0 1 215.65 120H192a24 24 0 0 0-24 24v40a24 24 0 0 0 24 24h24a24 24 0 0 1-24 24h-56a8 8 0 0 0 0 16h56a40 40 0 0 0 40-40v-80a103.4 103.4 0 0 0-30.11-73.34M64 136a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8v-48Zm128 56a8 8 0 0 1-8-8v-40a8 8 0 0 1 8-8h24v56Z"/></svg>';
 
 $ICON_SUPPORT_EXPIRED = '<svg class="mageme-ecosystem__btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
 
 $ICON_ACTIVATE = '<svg class="mageme-ecosystem__btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>';
 
-$ICON_RENEW = '<svg class="mageme-ecosystem__btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+$ICON_RENEW = '<svg class="mageme-ecosystem__btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
 
 $ICON_GETPRO = '<svg class="mageme-ecosystem__btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>';
 
+// Phosphor stack-plus (MIT). The Pro-offer pill: a set of items on top of what you have.
+$ICON_ROW_ARROW = '<svg class="mageme-ecosystem__row-status-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>';
+
+$ICON_STACK_PLUS_LG = '<svg class="mageme-ecosystem__offer-cta-icon" width="22" height="22" viewBox="0 0 256 256" aria-hidden="true"><g fill="currentColor"><path d="m224 80l-96 56l-96-56l96-56Z" opacity=".2"/><path d="M240 200a8 8 0 0 1-8 8h-16v16a8 8 0 0 1-16 0v-16h-16a8 8 0 0 1 0-16h16v-16a8 8 0 0 1 16 0v16h16a8 8 0 0 1 8 8m-20-78.91l-92 53.65l-92-53.65a8 8 0 0 0-8 13.82l96 56a8 8 0 0 0 8.06 0l96-56a8 8 0 1 0-8.06-13.82M24 80a8 8 0 0 1 4-6.91l96-56a8 8 0 0 1 8.06 0l96 56a8 8 0 0 1 0 13.82l-96 56a8 8 0 0 1-8.06 0l-96-56A8 8 0 0 1 24 80m23.88 0L128 126.74L208.12 80L128 33.26ZM140 215.76l-12 7l-92-53.67a8 8 0 0 0-8 13.82l96 56a8 8 0 0 0 8.06 0l16-9.33a8 8 0 1 0-8.06-13.82"/></g></svg>';
+$ICON_STACK_PLUS_BTN = '<svg class="mageme-ecosystem__btn-icon" width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><g fill="currentColor"><path d="m224 80l-96 56l-96-56l96-56Z" opacity=".2"/><path d="M240 200a8 8 0 0 1-8 8h-16v16a8 8 0 0 1-16 0v-16h-16a8 8 0 0 1 0-16h16v-16a8 8 0 0 1 16 0v16h16a8 8 0 0 1 8 8m-20-78.91l-92 53.65l-92-53.65a8 8 0 0 0-8 13.82l96 56a8 8 0 0 0 8.06 0l96-56a8 8 0 1 0-8.06-13.82M24 80a8 8 0 0 1 4-6.91l96-56a8 8 0 0 1 8.06 0l96 56a8 8 0 0 1 0 13.82l-96 56a8 8 0 0 1-8.06 0l-96-56A8 8 0 0 1 24 80m23.88 0L128 126.74L208.12 80L128 33.26ZM140 215.76l-12 7l-92-53.67a8 8 0 0 0-8 13.82l96 56a8 8 0 0 0 8.06 0l16-9.33a8 8 0 1 0-8.06-13.82"/></g></svg>';
 $ICON_CHECK = '<svg class="mageme-ecosystem__check-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+$ICON_WARNING = '<svg class="mageme-ecosystem__check-icon" width="14" height="14" viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M236.8 188.09L149.35 36.22a24.76 24.76 0 0 0-42.7 0L19.2 188.09a23.51 23.51 0 0 0 0 23.72A24.35 24.35 0 0 0 40.55 224h174.9a24.35 24.35 0 0 0 21.33-12.19a23.51 23.51 0 0 0 .02-23.72M120 104a8 8 0 0 1 16 0v40a8 8 0 0 1-16 0Zm8 88a12 12 0 1 1 12-12a12 12 0 0 1-12 12"/></svg>';
 
 $ICON_CARET = '<svg class="mageme-ecosystem__caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>';
 
@@ -59,16 +100,15 @@ $subgroupKeyFor = static function (?string $label): string {
 
 // Lucide v1.14 icons (ISC). Group / row tile icon set — small, outline, currentColor.
 $GROUP_ICONS = [
-    'core'         => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
-    'addons'       => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V12"/><path d="M16 17h6"/><path d="M19 14v6"/><path d="M21 10.535V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.729l7 4a2 2 0 0 0 2 .001l1.675-.955"/><path d="M3.29 7 12 12l8.71-5"/><path d="m7.5 4.27 8.997 5.148"/></svg>',
-    'integrations' => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>',
-    'breeze'       => '<svg class="mageme-ecosystem__group-icon" width="16" height="12" viewBox="0 0 37 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path stroke="currentColor" stroke-miterlimit="10" stroke-width="3" fill="none" d="m32.56,8.03c-6.11,0-6.11-3.64-12.17-3.64s-6.11,3.64-12.17,3.64S2.11,4.39-3.95,4.39m36.51,11.28c-6.11,0-6.11-3.64-12.17-3.64s-6.11,3.64-12.17,3.64-6.11-3.64-12.17-3.64m36.51,11.28c-6.11,0-6.11-3.64-12.17-3.64s-6.11,3.64-12.17,3.64-6.11-3.64-12.17-3.64"/></svg>',
+    'core'         => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+    'addons'       => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V12"/><path d="M16 17h6"/><path d="M19 14v6"/><path d="M21 10.535V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.729l7 4a2 2 0 0 0 2 .001l1.675-.955"/><path d="M3.29 7 12 12l8.71-5"/><path d="m7.5 4.27 8.997 5.148"/></svg>',
+    'integrations' => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>',
+    'breeze'       => '<svg class="mageme-ecosystem__group-icon" width="16" height="12" viewBox="0 0 37 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path stroke="currentColor" stroke-miterlimit="10" stroke-width="2.3" fill="none" d="m32.56,8.03c-6.11,0-6.11-3.64-12.17-3.64s-6.11,3.64-12.17,3.64S2.11,4.39-3.95,4.39m36.51,11.28c-6.11,0-6.11-3.64-12.17-3.64s-6.11,3.64-12.17,3.64-6.11-3.64-12.17-3.64m36.51,11.28c-6.11,0-6.11-3.64-12.17-3.64s-6.11,3.64-12.17,3.64-6.11-3.64-12.17-3.64"/></svg>',
     'hyva'         => '<svg class="mageme-ecosystem__group-icon" width="14" height="14" viewBox="0 0 960 960" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M539.244 241.913L580.837 117.835H725.095L683.28 241.913H539.244Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M364.736 411.393C405.406 379.063 454.949 358.728 510.738 358.728C624.934 358.728 736 431.756 736 618.926V850.442H589.998V618.926C589.998 522.46 544.138 485.956 481.537 485.956C429.915 485.956 392.381 515.681 371.514 546.962V850.442H224.994V249.748H136L182.843 110H364.736V411.393Z" fill="currentColor"/></svg>',
-    'api'          => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>',
-    '_default'     => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></svg>',
+    'api'          => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>',
+    '_default'     => '<svg class="mageme-ecosystem__group-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></svg>',
 ];
 
-$monogram = $block->getMonogramTheme($view->core->moduleName);
 
 // Translated labels handed to the inline script so client-side status rendering stays localizable.
 $i18nLabels = [
@@ -98,8 +138,10 @@ $i18nLabels = [
      data-mageme-ecosystem
      data-section-id="<?= $escaper->escapeHtmlAttr($sectionId) ?>"
      data-module-name="<?= $escaper->escapeHtmlAttr($view->core->moduleName) ?>"
+     data-offer-signature="<?= $escaper->escapeHtmlAttr($offerSignature) ?>"
+     data-offers-pro="<?= $offersPro ? '1' : '0' ?>"
      data-default-expanded="<?= $expanded ? '1' : '0' ?>"
-     data-needs-refresh="<?= $block->isCatalogEmpty() ? '1' : '0' ?>"
+     data-needs-refresh="<?= $block->isCatalogEmpty() && $block->canHydrate() ? '1' : '0' ?>"
      data-catalog-refresh-url="<?= $escaper->escapeUrl($block->getCatalogRefreshUrl()) ?>"
      data-ecosystem-render-url="<?= $escaper->escapeUrl($block->getEcosystemRenderUrl()) ?>"
      data-i18n="<?= $escaper->escapeHtmlAttr(json_encode($i18nLabels)) ?>"
@@ -109,26 +151,28 @@ $i18nLabels = [
      data-bwignore="true">
     <div class="mageme-ecosystem__header">
         <div class="mageme-ecosystem__brand">
-            <div class="mageme-ecosystem__monogram"
-                 aria-hidden="true"
-                 style="background:<?= $escaper->escapeHtmlAttr($monogram['gradient']) ?>;">
+            <div class="mageme-ecosystem__monogram" aria-hidden="true">
                 <span class="mageme-ecosystem__logo-mark"
                       style="-webkit-mask-image:url('<?= $escaper->escapeUrl($block->getViewFileUrl('MageMe_Core::images/mageme.svg')) ?>');mask-image:url('<?= $escaper->escapeUrl($block->getViewFileUrl('MageMe_Core::images/mageme.svg')) ?>');"></span>
             </div>
             <div class="mageme-ecosystem__title-stack">
                 <div class="mageme-ecosystem__title-row">
-                    <span class="mageme-ecosystem__title"><?= $escaper->escapeHtml($view->getProductName()) ?></span>
-                    <?php if ($view->core->localVersion !== null): ?>
-                        <span class="mageme-ecosystem__version">v<?= $escaper->escapeHtml($view->core->localVersion) ?></span>
-                    <?php endif; ?>
+                    <span class="mageme-ecosystem__title"><?= $escaper->escapeHtml(
+                        $view->core->localVersion !== null
+                            ? $view->getProductName() . ' v' . $view->core->localVersion
+                            : $view->getProductName()
+                    ) ?></span>
                     <?php if ($view->updateCount > 0): ?>
                         <span class="mageme-ecosystem__update-pill"
-                              title="<?= $escaper->escapeHtmlAttr(__('Updates available for this product')) ?>">
-                            <svg class="mageme-ecosystem__update-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                              data-open-filter="update"
+                              role="button"
+                              tabindex="0"
+                              title="<?= $escaper->escapeHtmlAttr(__('Show the modules with updates')) ?>">
+                            <svg class="mageme-ecosystem__update-arrow" width="14" height="14" viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M228 48v48a12 12 0 0 1-12 12h-48a12 12 0 0 1 0-24h19l-7.8-7.8a75.55 75.55 0 0 0-53.32-22.26h-.43a75.5 75.5 0 0 0-53.06 21.63a12 12 0 1 1-16.78-17.16a99.38 99.38 0 0 1 69.87-28.47h.52a99.42 99.42 0 0 1 70.2 29.29L204 67V48a12 12 0 0 1 24 0m-44.39 132.43a75.5 75.5 0 0 1-53.09 21.63h-.43a75.55 75.55 0 0 1-53.32-22.26L69 172h19a12 12 0 0 0 0-24H40a12 12 0 0 0-12 12v48a12 12 0 0 0 24 0v-19l7.8 7.8a99.42 99.42 0 0 0 70.2 29.26h.56a99.38 99.38 0 0 0 69.87-28.47a12 12 0 0 0-16.78-17.16Z"/></svg>
                             <?= $escaper->escapeHtml(
                                 $view->updateCount === 1
-                                    ? __('1 update available')
-                                    : __('%1 updates available', $view->updateCount)
+                                    ? __('1 Update Available')
+                                    : __('%1 Updates Available', $view->updateCount)
                             ) ?>
                         </span>
                     <?php endif; ?>
@@ -148,7 +192,7 @@ $i18nLabels = [
             : '';
         ?>
         <div class="mageme-ecosystem__actions" data-license-state="<?= $escaper->escapeHtmlAttr($licenseState) ?>">
-            <?php if ($block->isCatalogEmpty()): ?>
+            <?php if ($block->isCatalogEmpty() && $block->canHydrate()): ?>
                 <span class="mageme-ecosystem__loading" aria-live="polite">
                     <span class="mageme-ecosystem__spinner" aria-hidden="true"></span>
                     <span><?= $escaper->escapeHtml(__('Loading…')) ?></span>
@@ -162,6 +206,14 @@ $i18nLabels = [
                     <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Docs')) ?></span>
                 </a>
             <?php endif; ?>
+            <?php if ($proOfferCount > 0 && $view->getProUrl !== null): ?>
+                <a class="mageme-ecosystem__btn mageme-ecosystem__btn--getpro"
+                   href="<?= $escaper->escapeUrl($view->getProUrl) ?>"
+                   target="_blank" rel="noopener noreferrer">
+                    <?=  /* @noEscape */ $ICON_STACK_PLUS_BTN  ?>
+                    <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Get Pro')) ?></span>
+                </a>
+            <?php endif; ?>
             <?php if ($hasLicenseBlock): ?>
                 <?php if ($view->supportUrl !== null): ?>
                     <a class="mageme-ecosystem__btn"
@@ -172,7 +224,7 @@ $i18nLabels = [
                         <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Support')) ?></span>
                     </a>
                     <?php /* Only when online renewal is unavailable — otherwise the Renew CTA below is the single expired-state action (avoids a duplicate --expired button). */ ?>
-                    <?php if ($view->renewUrl === null): ?>
+                    <?php if ($renewUrl === null): ?>
                         <a class="mageme-ecosystem__btn mageme-ecosystem__btn--expired"
                            data-show-on-state="expired"
                            data-mageme-support-expired
@@ -191,25 +243,15 @@ $i18nLabels = [
                     <?= /* @noEscape */ $ICON_ACTIVATE ?>
                     <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Please activate license')) ?></span>
                 </button>
-                <?php if ($view->renewUrl !== null): ?>
+                <?php if ($renewUrl !== null): ?>
                     <a class="mageme-ecosystem__btn mageme-ecosystem__btn--renew"
                        data-show-on-state="expired"
-                       href="<?= $escaper->escapeUrl($view->renewUrl) ?>"
+                       href="<?= $escaper->escapeUrl($renewUrl) ?>"
                        target="_blank" rel="noopener noreferrer">
                         <?= /* @noEscape */ $ICON_RENEW ?>
                         <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Renew support & updates')) ?></span>
                     </a>
                 <?php endif; ?>
-            <?php endif; ?>
-            <?php if ($view->getProUrl !== null): ?>
-                <a class="mageme-ecosystem__btn mageme-ecosystem__btn--getpro"
-                   href="<?= $escaper->escapeUrl($view->getProUrl) ?>"
-                   target="_blank" rel="noopener noreferrer"
-                   data-mageme-row-tooltip
-                   data-description="<?= $escaper->escapeHtmlAttr(__('Unlock the Pro version: advanced features and priority support.')) ?>">
-                    <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Upgrade to Pro')) ?></span>
-                    <?= /* @noEscape */ $ICON_GETPRO ?>
-                </a>
             <?php endif; ?>
             <?php if ($view->isExpandable()): ?>
                 <button type="button"
@@ -225,32 +267,44 @@ $i18nLabels = [
 
     <?php
     $showTierPills = $view->showTierPills;
-    $renderRow = static function ($row, string $groupKey = 'addons') use ($escaper, $ICON_CHECK, $GROUP_ICONS, $showTierPills) {
-        $iconKey  = isset($GROUP_ICONS[$groupKey]) ? $groupKey : '_default';
-        $iconHtml = $GROUP_ICONS[$iconKey];
-        $rowIconClass = 'mageme-ecosystem__row-icon mageme-ecosystem__row-icon--' . $iconKey
-            . ($row->isInstalled() ? ' is-installed' : ' is-available');
+    $renderRow = static function ($row) use ($escaper, $ICON_CHECK, $ICON_WARNING, $ICON_ROW_ARROW, $showTierPills) {
         $versionDisplay = $row->localVersion !== null ? 'v' . $row->localVersion : '—';
         $versionClass = $row->localVersion !== null
             ? 'mageme-ecosystem__row-version'
             : 'mageme-ecosystem__row-version mageme-ecosystem__row-version--missing';
-        $showCheck = false;
+        $showCheck   = false;
+        $showWarning = false;
         if ($row->status === Status::UPDATE_AVAILABLE) {
             $statusClass = 'mageme-ecosystem__row-status mageme-ecosystem__row-status--update';
-            $statusText  = '↑ v' . ($row->latestVersion ?? '') . ' ' . __('available');
+            $statusText  = 'v' . ($row->latestVersion ?? '') . ' ' . __('available');
+        } elseif ($row->status === Status::SUPERSEDED) {
+            $statusClass = 'mageme-ecosystem__row-status mageme-ecosystem__row-status--superseded';
+            $statusText  = (string) __('Built in — remove');
+            $showWarning = true;
         } elseif ($row->status === Status::NOT_INSTALLED) {
             $statusClass = 'mageme-ecosystem__row-status mageme-ecosystem__row-status--missing';
-            $statusText  = (string) __('Not installed');
+            $statusText  = in_array('pro', $row->tiers, true)
+                ? (string) __('Requires Pro')
+                : (string) __('Not installed');
         } else {
             $statusClass = 'mageme-ecosystem__row-status mageme-ecosystem__row-status--up';
             $statusText  = (string) __('Installed');
             $showCheck   = true;
         }
+        $statusLink = $row->status === Status::NOT_INSTALLED && $row->proUrl !== null && $row->proUrl !== ''
+            ? $row->proUrl
+            : null;
         $filterStatus = $row->status === Status::UPDATE_AVAILABLE ? 'update'
             : ($row->status === Status::NOT_INSTALLED ? 'not-installed' : 'installed');
+        $removalHint = $row->status === Status::SUPERSEDED
+            ? (string) __(
+                '%1 is now built into the suite core. This add-on is no longer used — disable and'
+                . ' remove it from your installation to avoid conflicts.',
+                $row->name
+            )
+            : null;
         ?>
         <div class="mageme-ecosystem__row" data-status="<?= $escaper->escapeHtmlAttr($filterStatus) ?>">
-            <span class="<?= $escaper->escapeHtmlAttr($rowIconClass) ?>" aria-hidden="true"><?= /* @noEscape */ $iconHtml ?></span>
             <span class="mageme-ecosystem__row-name">
                 <span class="mageme-ecosystem__row-label"><?= $escaper->escapeHtml($row->name) ?></span>
                 <?php if ($row->description !== null && $row->description !== ''): ?>
@@ -270,9 +324,19 @@ $i18nLabels = [
                 <?php endif; ?>
             </span>
             <span class="<?= $escaper->escapeHtmlAttr($versionClass) ?>"><?= $escaper->escapeHtml($versionDisplay) ?></span>
-            <span class="<?= $escaper->escapeHtmlAttr($statusClass) ?>">
+            <span class="<?= $escaper->escapeHtmlAttr($statusClass) ?>"
+                  <?php if ($removalHint !== null): ?>tabindex="0"
+                  data-mageme-row-tooltip
+                  data-description="<?= $escaper->escapeHtmlAttr($removalHint) ?>"<?php endif; ?>>
                 <?php if ($showCheck): ?><?= /* @noEscape */ $ICON_CHECK ?><?php endif; ?>
-                <span class="mageme-ecosystem__row-status-text"><?= $escaper->escapeHtml($statusText) ?></span>
+                <?php if ($showWarning): ?><?= /* @noEscape */ $ICON_WARNING ?><?php endif; ?>
+                <?php if ($statusLink !== null): ?>
+                    <a class="mageme-ecosystem__row-status-text mageme-ecosystem__row-status-link"
+                       href="<?= $escaper->escapeUrl($statusLink) ?>"
+                       target="_blank" rel="noopener noreferrer"><?= $escaper->escapeHtml($statusText) ?><?= /* @noEscape */ $ICON_ROW_ARROW ?></a>
+                <?php else: ?>
+                    <span class="mageme-ecosystem__row-status-text"><?= $escaper->escapeHtml($statusText) ?></span>
+                <?php endif; ?>
             </span>
         </div>
         <?php
@@ -300,7 +364,7 @@ $i18nLabels = [
         <div id="mageme-ecosystem-body-<?= $escaper->escapeHtmlAttr($sectionId) ?>"
              class="mageme-ecosystem__body <?= $expanded ? 'is-expanded' : '' ?>"
              aria-hidden="<?= $expanded ? 'false' : 'true' ?>"
-             data-filter="installed">
+             data-filter="all">
             <div class="mageme-ecosystem__body-inner">
                 <?php $lic = $view->license; ?>
                 <?php if ($lic !== null && $lic->supported && $block->canViewLicense()): ?>
@@ -313,18 +377,18 @@ $i18nLabels = [
                          data-module-name="<?= $escaper->escapeHtmlAttr($lic->moduleName) ?>"
                          data-activate-url="<?= $escaper->escapeUrl($lic->activateUrl) ?>"
                          data-deactivate-url="<?= $escaper->escapeUrl($lic->deactivateUrl) ?>">
-                        <span class="mageme-ecosystem__license-icon" aria-hidden="true">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>
-                        </span>
                         <div class="mageme-ecosystem__license-content">
                             <div class="mageme-ecosystem__license-row">
                                 <div class="mageme-ecosystem__license-serial-wrap">
+                                    <span class="mageme-ecosystem__license-icon" aria-hidden="true">
+                                        <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M216.57 39.43a80 80 0 0 0-132.66 81.35L28.69 176A15.86 15.86 0 0 0 24 187.31V216a16 16 0 0 0 16 16h32a8 8 0 0 0 8-8v-16h16a8 8 0 0 0 8-8v-16h16a8 8 0 0 0 5.66-2.34l9.56-9.57A79.7 79.7 0 0 0 160 176h.1a80 80 0 0 0 56.47-136.57M180 92a16 16 0 1 1 16-16a16 16 0 0 1-16 16"/></svg>
+                                    </span>
                                     <input
                                         type="text"
                                         class="mageme-ecosystem__license-serial"
                                         data-mageme-license-serial
                                         value="<?= $escaper->escapeHtmlAttr((string) $lic->serial) ?>"
-                                        placeholder="<?= $escaper->escapeHtmlAttr(__('Enter your license serial number')) ?>"
+                                        placeholder="<?= $escaper->escapeHtmlAttr(__('Your serial number')) ?>"
                                         spellcheck="false"
                                         autocomplete="off"
                                         data-1p-ignore="true"
@@ -369,7 +433,6 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
 ?>
                                 <span class="mageme-ecosystem__license-status-group">
                                     <span class="mageme-ecosystem__license-active-pill" aria-hidden="true">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                         <?= $escaper->escapeHtml(__('License active')) ?>
                                     </span>
                                     <span class="mageme-ecosystem__license-status is-<?= $escaper->escapeHtmlAttr($lic->state) ?>"
@@ -400,7 +463,7 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                     </div>
                 <?php endif; ?>
                 <div class="mageme-ecosystem__filters" role="tablist" aria-label="<?= $escaper->escapeHtmlAttr(__('Filter modules')) ?>">
-                    <div class="mageme-ecosystem__filter" data-filter="all" role="tab" tabindex="0" aria-selected="false">
+                    <div class="mageme-ecosystem__filter is-active" data-filter="all" role="tab" tabindex="0" aria-selected="true">
                         <?= $escaper->escapeHtml(__('All')) ?>
                         <span class="mageme-ecosystem__filter-count" data-count-all></span>
                     </div>
@@ -408,7 +471,7 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                         <?= $escaper->escapeHtml(__('Updates')) ?>
                         <span class="mageme-ecosystem__filter-count" data-count-update></span>
                     </div>
-                    <div class="mageme-ecosystem__filter is-active" data-filter="installed" role="tab" tabindex="0" aria-selected="true">
+                    <div class="mageme-ecosystem__filter" data-filter="installed" role="tab" tabindex="0" aria-selected="false">
                         <?= $escaper->escapeHtml(__('Installed')) ?>
                         <span class="mageme-ecosystem__filter-count" data-count-installed></span>
                     </div>
@@ -417,16 +480,49 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                         <span class="mageme-ecosystem__filter-count" data-count-not-installed></span>
                     </div>
                 </div>
+                <?php
+                $frameworkRow = $block->getFrameworkRow();
+                $hasFrameworkRow = $frameworkRow->moduleName !== $view->core->moduleName;
+                ?>
+                <?php if ($offersPro): ?>
+                <?php
+                $proPreview = array_slice($proOfferNames, 0, 3);
+                $proRest    = count($proOfferNames) - count($proPreview);
+                ?>
+                <div class="mageme-ecosystem__offer-cta">
+                    <canvas class="mageme-ecosystem__offer-net" data-mageme-offer-net aria-hidden="true"></canvas>
+                    <?= /* @noEscape */ $ICON_STACK_PLUS_LG ?>
+                    <span class="mageme-ecosystem__offer-cta-text">
+                        <span class="mageme-ecosystem__offer-cta-title"><?= $escaper->escapeHtml(
+                            $proOfferCount === 1
+                                ? __('1 optional add-on comes with Pro')
+                                : __('%1 optional add-ons come with Pro', $proOfferCount)
+                        ) ?></span>
+                        <span class="mageme-ecosystem__offer-cta-list"><?= $escaper->escapeHtml(
+                            $proRest > 0
+                                ? __('%1 and %2 more', implode(', ', $proPreview), $proRest)
+                                : implode(', ', $proPreview)
+                        ) ?></span>
+                    </span>
+                    <a class="mageme-ecosystem__btn mageme-ecosystem__btn--getpro"
+                       href="<?= $escaper->escapeUrl($view->proPlateUrl ?? $view->getProUrl) ?>"
+                       target="_blank" rel="noopener noreferrer">
+                        <span class="mageme-ecosystem__btn-label"><?= $escaper->escapeHtml(__('Upgrade to Pro')) ?></span>
+                        <?= /* @noEscape */ $ICON_GETPRO ?>
+                    </a>
+                </div>
+                <?php endif; ?>
                 <div class="mageme-ecosystem__group">
                     <div class="mageme-ecosystem__group-label mageme-ecosystem__group-label--core">
+                        <span class="mageme-ecosystem__label-icon" aria-hidden="true"><?= /* @noEscape */ $GROUP_ICONS['core'] ?></span>
                         <span class="mageme-ecosystem__group-text"><?= $escaper->escapeHtml(__('CORE')) ?></span>
+                        <span class="mageme-ecosystem__group-count"><?= $hasFrameworkRow ? 2 : 1 ?></span>
                     </div>
                     <div class="mageme-ecosystem__subgroup-rows">
-                        <?php $frameworkRow = $block->getFrameworkRow(); ?>
-                        <?php if ($frameworkRow->moduleName !== $view->core->moduleName): ?>
-                            <?php $renderRow($frameworkRow, 'core'); ?>
+                        <?php if ($hasFrameworkRow): ?>
+                            <?php $renderRow($frameworkRow); ?>
                         <?php endif; ?>
-                        <?php $renderRow($view->core, 'core'); ?>
+                        <?php $renderRow($view->core); ?>
                     </div>
                 </div>
                 <?php
@@ -445,12 +541,13 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
                             <?php $subKey = $subgroupKeyFor((string) $label); ?>
                             <div class="mageme-ecosystem__subgroup">
                                 <div class="mageme-ecosystem__sub-label mageme-ecosystem__sub-label--<?= $escaper->escapeHtmlAttr($subKey) ?>">
+                                    <span class="mageme-ecosystem__label-icon" aria-hidden="true"><?= /* @noEscape */ ($GROUP_ICONS[$subKey] ?? $GROUP_ICONS['_default']) ?></span>
                                     <span class="mageme-ecosystem__group-text"><?= $escaper->escapeHtml($label) ?></span>
                                     <span class="mageme-ecosystem__group-count"><?= count($rows) ?></span>
                                 </div>
                                 <div class="mageme-ecosystem__subgroup-rows">
                                     <?php foreach ($rows as $addonRow): ?>
-                                        <?php $renderRow($addonRow, $subKey); ?>
+                                        <?php $renderRow($addonRow); ?>
                                     <?php endforeach; ?>
                                 </div>
                             </div>
@@ -461,1429 +558,4 @@ $showInlineHint = !$lic->isActive && (string) $lic->serial === '' && $getOneUrl 
         </div>
     <?php endif; ?>
 
-    <style>
-        /* Scoped to .mageme-ecosystem to avoid bleed — Inter / monogram redesign.
-           Outer card uses the mockup's light-grey "page area" so internal white sub-cards
-           (license row, module rows) stand out. */
-        .mageme-ecosystem {
-            position: relative;
-            background: #fafafb;
-            border: 1px solid #eaecef;
-            border-radius: 16px;
-            padding: 20px 24px;
-            margin: 0 0 20px;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', Arial, sans-serif;
-            color: #1f2430;
-            overflow: hidden;
-        }
-        .mageme-ecosystem__header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            cursor: pointer;
-            user-select: none;
-        }
-        .mageme-ecosystem__header .mageme-ecosystem__btn { cursor: pointer; user-select: auto; }
-        .mageme-ecosystem__brand {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            min-width: 0;
-        }
-        /* Hero tile — per-suite gradient set via PHP (getMonogramTheme). */
-        .mageme-ecosystem__monogram {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 56px;
-            height: 56px;
-            flex: none;
-            border-radius: 12px;
-        }
-        /* Company logo (mono SVG, white) on the brand-dark tile. */
-        .mageme-ecosystem__logo-mark {
-            width: 26px;
-            height: 40px;
-            display: block;
-            background-color: #ffffff;
-            -webkit-mask-repeat: no-repeat;
-            mask-repeat: no-repeat;
-            -webkit-mask-position: center;
-            mask-position: center;
-            -webkit-mask-size: contain;
-            mask-size: contain;
-        }
-        .mageme-ecosystem__title-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            min-width: 0;
-        }
-        .mageme-ecosystem__title-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .mageme-ecosystem__title {
-            color: #1f2430;
-            font-size: 18px;
-            font-weight: 600;
-            letter-spacing: -0.2px;
-            line-height: 1.2;
-        }
-        .mageme-ecosystem__version {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            background: #f1f2f5;
-            color: #5b6470;
-            border: 1px solid transparent;
-            border-radius: 6px;
-            padding: 3px 8px;
-            font-size: 12px;
-            font-weight: 500;
-            line-height: 1;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            letter-spacing: 0.2px;
-        }
-        .mageme-ecosystem__update-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #dbeafe;
-            color: #1e40af;
-            border: 1px solid #93c5fd;
-            border-radius: 6px;
-            padding: 4px 9px;
-            font-size: 11.5px;
-            font-weight: 600;
-            line-height: 1.1;
-        }
-        .mageme-ecosystem__update-arrow { flex: none; color: #1e40af; }
-
-        /* Action group */
-        .mageme-ecosystem__actions { display: flex; align-items: center; gap: 8px; }
-        .mageme-ecosystem .mageme-ecosystem__actions [data-show-on-state] { display: none !important; }
-        .mageme-ecosystem .mageme-ecosystem__actions[data-license-state="active"]   [data-show-on-state~="active"],
-        .mageme-ecosystem .mageme-ecosystem__actions[data-license-state="dev"]      [data-show-on-state~="dev"],
-        .mageme-ecosystem .mageme-ecosystem__actions[data-license-state="expired"]  [data-show-on-state~="expired"],
-        .mageme-ecosystem .mageme-ecosystem__actions[data-license-state="inactive"] [data-show-on-state~="inactive"] {
-            display: inline-flex !important;
-        }
-        .mageme-ecosystem__btn,
-        .mageme-ecosystem__toggle { box-sizing: border-box; }
-
-        /* Docs / Support / Activate CTA — rounded rectangle (8px), mockup-aligned.
-           !important on display + flex props because Magento admin's `a { display: block; }` overrides. */
-        .mageme-ecosystem .mageme-ecosystem__btn {
-            display: inline-flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            align-items: center !important;
-            justify-content: center;
-            gap: 8px;
-            height: 34px;
-            padding: 0 14px;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            color: #3a4150;
-            font-size: 13px;
-            font-weight: 500;
-            line-height: 1;
-            text-decoration: none;
-            transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-            white-space: nowrap;
-            box-shadow: none;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn:hover {
-            background: #f4f5f7;
-            border-color: #d1d5db;
-            color: #1f2430;
-            text-decoration: none;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn:active { background: #ebedf0; }
-        .mageme-ecosystem .mageme-ecosystem__btn:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
-        /* Severity hierarchy in the new palette:
-             red    = problem  (Support expired pill / Activate CTA in error context)
-             indigo = action   (Renew, primary CTA)
-             violet = brand    (Updates badge, brand accents)
-             green  = success  (License active, Installed) */
-        .mageme-ecosystem .mageme-ecosystem__btn--expired {
-            background: #fee2e2;
-            border-color: #fca5a5;
-            color: #991b1b;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn--expired:hover {
-            background: #fecaca;
-            border-color: #f87171;
-            color: #7f1d1d;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn--expired .mageme-ecosystem__btn-icon { color: #991b1b; }
-        .mageme-ecosystem .mageme-ecosystem__btn--expired:hover .mageme-ecosystem__btn-icon { color: #7f1d1d; }
-        .mageme-ecosystem .mageme-ecosystem__btn--renew {
-            background: #2563eb;
-            border-color: #2563eb;
-            color: #ffffff;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn--renew:hover {
-            background: #1d4ed8;
-            border-color: #1d4ed8;
-            color: #ffffff;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn--renew .mageme-ecosystem__btn-icon { color: #ffffff; }
-        .mageme-ecosystem .mageme-ecosystem__btn--renew:hover .mageme-ecosystem__btn-icon { color: #ffffff; }
-        /* Upgrade to Pro = de-emphasised upsell, coloured to match the Pro
-           tier badge palette (.mageme-ecosystem__tier--pro): soft indigo. */
-        .mageme-ecosystem .mageme-ecosystem__btn--getpro {
-            background: #e0e7ff;
-            border-color: #c7d2fe;
-            color: #4338ca;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn--getpro:hover {
-            background: #c7d2fe;
-            border-color: #a5b4fc;
-            color: #3730a3;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn--getpro .mageme-ecosystem__btn-icon { color: #4338ca; }
-        /* Activate license CTA — primary action; filled indigo, matches Renew. */
-        .mageme-ecosystem .mageme-ecosystem__btn--activate {
-            background: #2563eb;
-            border-color: #2563eb;
-            color: #ffffff;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn--activate:hover {
-            background: #1d4ed8;
-            border-color: #1d4ed8;
-            color: #ffffff;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn--activate .mageme-ecosystem__btn-icon { color: #ffffff; }
-        .mageme-ecosystem .mageme-ecosystem__btn--activate:hover .mageme-ecosystem__btn-icon { color: #ffffff; }
-        @keyframes mageme-pulse-attention {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(185, 28, 28, 0); }
-            30% { box-shadow: 0 0 0 4px rgba(185, 28, 28, 0.25); }
-        }
-        .mageme-ecosystem__license-serial.is-attention {
-            animation: mageme-pulse-attention 1.4s ease-out 2;
-            border-color: #991b1b !important;
-        }
-        .mageme-ecosystem .mageme-ecosystem__btn-icon {
-            flex: 0 0 auto;
-            color: #94a3b8;
-            display: inline-block !important;
-            vertical-align: middle;
-        }
-        /* Secondary buttons only — Docs / Support / Get Pro icons darken on hover.
-           Primary filled CTAs (Renew, Activate) keep white icons; Get Pro keeps indigo. */
-        .mageme-ecosystem .mageme-ecosystem__btn:not(.mageme-ecosystem__btn--renew):not(.mageme-ecosystem__btn--activate):not(.mageme-ecosystem__btn--getpro):hover .mageme-ecosystem__btn-icon { color: #1c1c1e; }
-        /* Get Pro: keep the icon indigo (not darkened) on hover. */
-        .mageme-ecosystem .mageme-ecosystem__btn--getpro:hover .mageme-ecosystem__btn-icon { color: #3730a3; }
-        .mageme-ecosystem .mageme-ecosystem__btn-label {
-            display: inline-block !important;
-            line-height: 1;
-            letter-spacing: -0.005em;
-            white-space: nowrap;
-        }
-
-        /* Caret toggle — rounded rectangle (8px), mockup-aligned */
-        .mageme-ecosystem__toggle {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 34px;
-            height: 34px;
-            margin: 0;
-            padding: 0;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            color: #3a4150;
-            cursor: pointer;
-            transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-            box-shadow: none;
-        }
-        .mageme-ecosystem__toggle:hover { background: #f4f5f7; border-color: #d1d5db; color: #1f2430; }
-        .mageme-ecosystem__toggle:active { background: #ebedf0; }
-        .mageme-ecosystem__toggle:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
-        .mageme-ecosystem__toggle .mageme-ecosystem__caret {
-            display: block;
-            transition: transform 0.18s ease;
-        }
-        .mageme-ecosystem__toggle[aria-expanded="false"] .mageme-ecosystem__caret { transform: rotate(180deg); }
-
-        .mageme-ecosystem__tagline {
-            color: #5b6470;
-            font-size: 13px;
-            font-weight: 400;
-            line-height: 1.4;
-            margin: 0;
-        }
-
-        .mageme-ecosystem__loading {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: #5b6470;
-            font-size: 13px;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-        .mageme-ecosystem__spinner {
-            width: 16px;
-            height: 16px;
-            flex: none;
-            border: 2px solid #d1d5db;
-            border-top-color: #2563eb;
-            border-radius: 50%;
-            animation: mageme-eco-spin 0.7s linear infinite;
-        }
-        @keyframes mageme-eco-spin { to { transform: rotate(360deg); } }
-        @media (prefers-reduced-motion: reduce) {
-            .mageme-ecosystem__spinner { animation: none; }
-        }
-
-        /* Animated body — modern grid-template-rows technique (no JS height calc, no max-height hack) */
-        .mageme-ecosystem__body {
-            display: grid;
-            grid-template-rows: 0fr;
-            transition: grid-template-rows 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
-            margin-top: 0;
-        }
-        .mageme-ecosystem__body.is-expanded {
-            grid-template-rows: 1fr;
-            margin-top: 14px;
-        }
-        .mageme-ecosystem__body-inner {
-            min-height: 0;
-            overflow: hidden;
-            padding-top: 0;
-            border-top: 0 solid transparent;
-            opacity: 0;
-            transform: translateY(-4px);
-            transition: opacity 200ms ease 60ms,
-                        transform 240ms cubic-bezier(0.22, 0.61, 0.36, 1) 40ms,
-                        padding-top 280ms ease,
-                        border-top-color 200ms ease;
-        }
-        .mageme-ecosystem__body.is-expanded .mageme-ecosystem__body-inner {
-            opacity: 1;
-            transform: translateY(0);
-            padding-top: 14px;
-            border-top: 1px solid #e5e7eb;
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .mageme-ecosystem__body,
-            .mageme-ecosystem__body-inner { transition: none; }
-        }
-
-        .mageme-ecosystem__group { margin-bottom: 18px; }
-        .mageme-ecosystem__group:last-child { margin-bottom: 0; }
-        .mageme-ecosystem__group + .mageme-ecosystem__group {
-            margin-top: 18px;
-        }
-
-        .mageme-ecosystem__license {
-            position: relative;
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 12px;
-            align-items: center;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 12px 14px;
-            margin-bottom: 14px;
-        }
-        .mageme-ecosystem__license-content {
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-        }
-        /* Decorative badge-check icon on the left — blue-tinted tile. */
-        .mageme-ecosystem__license-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            background: #dbeafe;
-            color: #1e40af;
-            border-radius: 10px;
-            flex: none;
-        }
-        .mageme-ecosystem__license-icon svg { width: 20px; height: 20px; }
-        /* Input + Deactivate button + status — single row */
-        .mageme-ecosystem__license-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        /* Serial chip — wrapper carries the bg + border-radius; input is transparent inside.
-           Copy button sits on the right edge of the chip. */
-        .mageme-ecosystem__license-serial-wrap {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            flex: 0 1 280px;
-            min-width: 200px;
-            height: 40px;
-            padding: 0 6px 0 12px;
-            background: #f4f5f7;
-            border: 1px solid transparent;
-            border-radius: 8px;
-            transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
-        }
-        .mageme-ecosystem__license-serial-wrap:focus-within {
-            background: #ffffff;
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
-        }
-        /* Input itself becomes transparent — wrapper holds the visual chip.
-           !important on background/border/color: Magento admin's `input[type="text"]` rules win otherwise. */
-        .mageme-ecosystem .mageme-ecosystem__license-serial {
-            flex: 1 1 auto;
-            min-width: 0;
-            width: 100%;
-            height: 38px !important;
-            padding: 0 !important;
-            background: transparent !important;
-            border: 0 none !important;
-            border-radius: 0 !important;
-            color: #1f2430 !important;
-            font: 500 13px/1 ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace !important;
-            letter-spacing: 0.6px;
-            box-shadow: none !important;
-        }
-        .mageme-ecosystem .mageme-ecosystem__license-serial::placeholder { color: #94a3b8 !important; letter-spacing: 0; font-family: inherit; font-weight: 400; }
-        .mageme-ecosystem .mageme-ecosystem__license-serial:focus { outline: none; box-shadow: none !important; }
-        /* Copy-to-clipboard button — ghost icon on the right of the chip */
-        .mageme-ecosystem__license-copy {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            padding: 0;
-            background: transparent;
-            border: 0 none;
-            border-radius: 6px;
-            color: #94a3b8;
-            cursor: pointer;
-            flex: none;
-            transition: background-color 0.12s ease, color 0.12s ease;
-        }
-        .mageme-ecosystem__license-copy:hover { background: #ebedf0; color: #1f2430; }
-        .mageme-ecosystem__license-copy:focus { outline: none; }
-        .mageme-ecosystem__license-copy:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
-        .mageme-ecosystem__license-copy-icon { display: inline-flex; }
-        .mageme-ecosystem__license-copy-icon--check { display: none; color: #047857; }
-        .mageme-ecosystem__license-copy.is-copied { color: #047857; background: #ecfdf5; }
-        .mageme-ecosystem__license-copy.is-copied .mageme-ecosystem__license-copy-icon--copy { display: none; }
-        .mageme-ecosystem__license-copy.is-copied .mageme-ecosystem__license-copy-icon--check { display: inline-flex; }
-        /* Deactivate / Activate — secondary button, rounded rectangle (8px) per mockup */
-        .mageme-ecosystem__license-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            height: 40px;
-            padding: 0 14px;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            color: #3a4150;
-            font-size: 13px;
-            font-weight: 500;
-            line-height: 1;
-            cursor: pointer;
-            transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-            flex: none;
-            box-shadow: none;
-        }
-        .mageme-ecosystem__license-btn-icon { display: inline-flex; color: #94a3b8; flex: none; }
-        .mageme-ecosystem__license-btn:hover { background: #f4f5f7; border-color: #d1d5db; }
-        .mageme-ecosystem__license-btn:active { background: #ebedf0; }
-        .mageme-ecosystem__license-btn:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
-        .mageme-ecosystem__license[data-active="0"] .mageme-ecosystem__license-btn {
-            background: #2563eb;
-            border-color: #2563eb;
-            color: #ffffff;
-        }
-        .mageme-ecosystem__license[data-active="0"] .mageme-ecosystem__license-btn:hover {
-            background: #1d4ed8;
-            border-color: #1d4ed8;
-            color: #ffffff;
-        }
-        .mageme-ecosystem__license[data-active="0"] .mageme-ecosystem__license-btn-icon { color: #ffffff; }
-        .mageme-ecosystem__license[data-active="1"] .mageme-ecosystem__license-btn:hover {
-            background: #fee2e2;
-            border-color: #fca5a5;
-            color: #991b1b;
-        }
-        .mageme-ecosystem__license[data-active="1"] .mageme-ecosystem__license-btn:hover .mageme-ecosystem__license-btn-icon {
-            color: #991b1b;
-        }
-        .mageme-ecosystem__license-status-group {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-left: auto;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }
-        .mageme-ecosystem__license-active-pill {
-            display: none;
-            align-items: center;
-            gap: 5px;
-            min-height: 36px;
-            padding: 6px 14px;
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
-            border-radius: 10px;
-            color: #047857;
-            font-size: 12.5px;
-            font-weight: 600;
-            line-height: 1;
-        }
-        .mageme-ecosystem__license-status-group:has(.mageme-ecosystem__license-status.is-expired) .mageme-ecosystem__license-active-pill {
-            display: inline-flex;
-        }
-        .mageme-ecosystem__license-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 36px;
-            padding: 6px 14px;
-            background: transparent;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            color: #94a3b8;
-            font-size: 13px;
-        }
-        .mageme-ecosystem__license-status-icon { display: none; flex: none; }
-        .mageme-ecosystem__license-status.is-active {
-            background: #ecfdf5;
-            border-color: #a7f3d0;
-            color: #047857;
-        }
-        .mageme-ecosystem__license-status.is-active .mageme-ecosystem__license-status-icon--check {
-            display: inline-flex;
-            color: #047857;
-        }
-        .mageme-ecosystem__license-status.is-dev {
-            background: #dbeafe;
-            border-color: #93c5fd;
-            color: #1e40af;
-        }
-        .mageme-ecosystem__license-status.is-dev .mageme-ecosystem__license-status-icon--code {
-            display: inline-flex;
-            color: #1e40af;
-        }
-        /* Expired is a real problem state → red, not amber. */
-        .mageme-ecosystem__license-status.is-expired {
-            background: #fee2e2;
-            border-color: #fca5a5;
-            color: #991b1b;
-        }
-        .mageme-ecosystem__license-status.is-expired .mageme-ecosystem__license-status-icon--clock {
-            display: inline-flex;
-            color: #991b1b;
-        }
-        .mageme-ecosystem__license-status.is-inactive .mageme-ecosystem__license-status-icon--lock {
-            display: inline-flex;
-            color: #5b6470;
-        }
-        .mageme-ecosystem__license-status.is-inactive {
-            background: #ffffff;
-            border-color: #eef0f3;
-            color: #5b6470;
-        }
-        .mageme-ecosystem__license-status.is-unknown {
-            background: transparent;
-            border-color: transparent;
-            color: #94a3b8;
-        }
-        .mageme-ecosystem__license-status-text {
-            display: inline-flex;
-            flex-direction: column;
-            gap: 2px;
-            line-height: 1.1;
-            text-align: left;
-        }
-        .mageme-ecosystem__license-status-primary { font-size: 12.5px; font-weight: 600; }
-        .mageme-ecosystem__license-status-secondary { font-size: 11px; font-weight: 400; opacity: 0.85; }
-        .mageme-ecosystem__license-status-secondary:empty { display: none; }
-        /* "No licence yet" hint living in the inactive status pill's secondary
-           sub-line (link in the Pro indigo, matching the Upgrade to Pro palette). */
-        .mageme-ecosystem__license-status.is-inactive .mageme-ecosystem__license-status-secondary a {
-            color: #4338ca;
-            font-weight: 600;
-            text-decoration: none;
-        }
-        .mageme-ecosystem__license-status.is-inactive .mageme-ecosystem__license-status-secondary a:hover {
-            color: #3730a3;
-            text-decoration: underline;
-        }
-        .mageme-ecosystem__license-messages {
-            display: none;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-        .mageme-ecosystem__license-messages:not(:empty) { display: flex; }
-        .mageme-ecosystem__license-messages > div {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 12px 16px;
-            border-radius: 10px;
-            border: 1px solid transparent;
-            font-size: 13px;
-            line-height: 1.45;
-        }
-        .mageme-ecosystem__license-messages > div > svg {
-            flex: 0 0 18px;
-            width: 18px;
-            height: 18px;
-            margin-top: 1px;
-        }
-        .mageme-ecosystem__license-messages .is-success {
-            background: #ecfdf5;
-            border-color: #a7f3d0;
-            color: #047857;
-        }
-        .mageme-ecosystem__license-messages .is-warning {
-            background: #fff8e1;
-            border-color: #fde68a;
-            color: #92400e;
-        }
-        .mageme-ecosystem__license-messages .is-error {
-            background: #fee2e2;
-            border-color: #fca5a5;
-            color: #7f1d1d;
-        }
-
-        /* Filter pills — Apple Settings vibe; soft fills, no heavy black */
-        .mageme-ecosystem__filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 14px;
-        }
-        .mageme-ecosystem__filter {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            height: 30px;
-            padding: 0 12px;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 999px;
-            color: #5b6470;
-            font-size: 12.5px;
-            font-weight: 500;
-            line-height: 1;
-            cursor: pointer;
-            transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-            user-select: none;
-        }
-        .mageme-ecosystem__filter:hover {
-            background: #f4f5f7;
-            border-color: #d1d5db;
-            color: #1f2430;
-        }
-        .mageme-ecosystem__filter.is-active {
-            background: #ecfdf5;
-            border-color: #a7f3d0;
-            color: #047857;
-        }
-        /* Updates filter — blue-tinted when there is at least one update */
-        .mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]) {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        .mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]):hover {
-            background: #bfdbfe;
-            color: #1e3a8a;
-        }
-        .mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]).is-active {
-            background: #2563eb;
-            border-color: transparent;
-            color: #ffffff;
-        }
-        .mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]) .mageme-ecosystem__filter-count {
-            background: rgba(37, 99, 235, 0.20);
-            color: #1e40af;
-        }
-        .mageme-ecosystem__filter[data-filter="update"]:not([data-empty="true"]).is-active .mageme-ecosystem__filter-count {
-            background: rgba(255, 255, 255, 0.25);
-            color: #ffffff;
-        }
-        .mageme-ecosystem__filter-count {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 22px;
-            height: 18px;
-            padding: 0 7px;
-            background: #f1f2f5;
-            color: #7a8390;
-            border-radius: 9px;
-            font-size: 11px;
-            font-weight: 700;
-            transition: background-color 0.12s ease, color 0.12s ease;
-        }
-        .mageme-ecosystem__filter.is-active .mageme-ecosystem__filter-count {
-            background: #047857;
-            color: #ffffff;
-        }
-        .mageme-ecosystem__filter-count:empty { display: none; }
-
-        /* Filter behaviour: hide rows whose data-status doesn't match the active filter.
-           "Installed" filter matches both fully installed AND update-available rows
-           (an update-available module IS still installed). */
-        .mageme-ecosystem__body[data-filter="update"] .mageme-ecosystem__row:not([data-status="update"]) { display: none; }
-        .mageme-ecosystem__body[data-filter="installed"] .mageme-ecosystem__row[data-status="not-installed"] { display: none; }
-        .mageme-ecosystem__body[data-filter="not-installed"] .mageme-ecosystem__row:not([data-status="not-installed"]) { display: none; }
-        /* Hide subgroup wrappers + CORE group with no remaining matching rows */
-        .mageme-ecosystem__body[data-filter="update"] .mageme-ecosystem__subgroup:not(:has(.mageme-ecosystem__row[data-status="update"])),
-        .mageme-ecosystem__body[data-filter="update"] .mageme-ecosystem__group:not(.mageme-ecosystem__group--addons):not(:has(.mageme-ecosystem__row[data-status="update"])) { display: none; }
-        .mageme-ecosystem__body[data-filter="installed"] .mageme-ecosystem__subgroup:not(:has(.mageme-ecosystem__row:not([data-status="not-installed"]))),
-        .mageme-ecosystem__body[data-filter="installed"] .mageme-ecosystem__group:not(.mageme-ecosystem__group--addons):not(:has(.mageme-ecosystem__row:not([data-status="not-installed"]))) { display: none; }
-        .mageme-ecosystem__body[data-filter="not-installed"] .mageme-ecosystem__subgroup:not(:has(.mageme-ecosystem__row[data-status="not-installed"])),
-        .mageme-ecosystem__body[data-filter="not-installed"] .mageme-ecosystem__group:not(.mageme-ecosystem__group--addons):not(:has(.mageme-ecosystem__row[data-status="not-installed"])) { display: none; }
-        /* Hide filter pills with zero count entirely */
-        .mageme-ecosystem__filter[data-empty="true"] { display: none; }
-        /* Bento — each subgroup has its own label + 2-col rows grid */
-        .mageme-ecosystem__group--addons { display: block; }
-        .mageme-ecosystem__subgroup { margin-top: 18px; }
-        .mageme-ecosystem__subgroup:first-child { margin-top: 0; }
-        .mageme-ecosystem__subgroup-rows {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            column-gap: 10px;
-            row-gap: 8px;
-            align-items: start;
-        }
-        .mageme-ecosystem__group-label,
-        .mageme-ecosystem__sub-label {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.8px;
-            color: #5b6470;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }
-        .mageme-ecosystem__group-text { letter-spacing: inherit; }
-        .mageme-ecosystem__group-count {
-            color: #aab1bb;
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: 0.8px;
-            text-transform: none;
-        }
-        .mageme-ecosystem__group-count::before {
-            content: "·";
-            margin-right: 5px;
-            color: #aab1bb;
-            font-weight: 600;
-        }
-        /* Hyva sub-section under ADD-ONS */
-        .mageme-ecosystem__sub-divider {
-            height: 1px;
-            background: #eef0f3;
-            margin: 14px 0 12px;
-        }
-        .mageme-ecosystem__row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: #ffffff;
-            border: 1px solid #ecedf0;
-            border-radius: 10px;
-            padding: 10px 12px;
-            min-height: 0;
-        }
-        .mageme-ecosystem .mageme-ecosystem__row-info {
-            display: inline-flex !important;
-            align-items: center;
-            justify-content: center;
-            width: 14px;
-            height: 14px;
-            margin-left: 6px;
-            padding: 0 !important;
-            background: transparent !important;
-            border: 1px solid #94a3b8 !important;
-            border-radius: 50% !important;
-            box-shadow: none !important;
-            color: #94a3b8;
-            font: 700 9px/1 -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
-            cursor: help;
-            vertical-align: -2px;
-            transition: color 0.15s ease, border-color 0.15s ease;
-            user-select: none;
-        }
-        .mageme-ecosystem .mageme-ecosystem__row-info:hover,
-        .mageme-ecosystem .mageme-ecosystem__row-info:focus,
-        .mageme-ecosystem .mageme-ecosystem__row-info:active {
-            color: #3c3c43;
-            border-color: #3c3c43 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            outline: none !important;
-        }
-        .mageme-ecosystem-tooltip {
-            position: fixed;
-            z-index: 10000;
-            max-width: 320px;
-            padding: 10px 14px;
-            background: #29334B;
-            color: #ffffff;
-            border: 0 none;
-            border-radius: 10px;
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18), 0 1px 3px rgba(15, 23, 42, 0.10);
-            font-size: 12.5px;
-            line-height: 1.45;
-            opacity: 0;
-            transform: translateY(4px);
-            transition: opacity 0.12s ease, transform 0.12s ease;
-            pointer-events: none;
-        }
-        .mageme-ecosystem-tooltip.is-visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .mageme-ecosystem-tooltip::after {
-            content: '';
-            position: absolute;
-            left: var(--arrow-x, 50%);
-            transform: translateX(-50%);
-            border: 5px solid transparent;
-        }
-        .mageme-ecosystem-tooltip[data-placement="top"]::after {
-            top: 100%;
-            border-top-color: #29334B;
-        }
-        .mageme-ecosystem-tooltip[data-placement="bottom"]::after {
-            bottom: 100%;
-            border-bottom-color: #29334B;
-        }
-        .mageme-ecosystem__row-icon { flex: none; }
-        .mageme-ecosystem__row-name {
-            flex: 1 1 auto;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .mageme-ecosystem__row-version { flex: none; justify-self: auto; }
-        .mageme-ecosystem__row-status { flex: none; min-width: auto; }
-        /* Update-available tile: warm-cream fill + amber border per mockup */
-        .mageme-ecosystem__row:has(.mageme-ecosystem__row-status--update) {
-            background: #eff6ff;
-            border-color: #bfdbfe;
-        }
-        /* Row icon-tile — 28x28 rounded square, pastel-tinted by group */
-        .mageme-ecosystem__row-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            background: #f1f2f5;
-            color: #7a8390;
-        }
-        .mageme-ecosystem__row-icon .mageme-ecosystem__group-icon {
-            width: 16px;
-            height: 16px;
-            color: inherit;
-        }
-        .mageme-ecosystem__row-icon--core         { background: #ecfdf5; color: #047857; }
-        .mageme-ecosystem__row-icon--addons       { background: #fff1e0; color: #c9590c; }
-        .mageme-ecosystem__row-icon--integrations { background: #e0f4f0; color: #0f8773; }
-        .mageme-ecosystem__row-icon--breeze       { background: #e6f1ff; color: #1f6fe8; }
-        .mageme-ecosystem__row-icon--hyva         { background: #f0e8ff; color: #6d28d9; }
-        .mageme-ecosystem__row-icon--api          { background: #fde2e7; color: #be185d; }
-        .mageme-ecosystem__row-icon--_default     { background: #f1f2f5; color: #7a8390; }
-        .mageme-ecosystem__row-name {
-            color: #1f2430;
-            font-size: 13.5px;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            min-width: 0;
-        }
-
-        .mageme-ecosystem__row-version {
-            display: inline-flex;
-            align-items: center;
-            background: #f1f2f5;
-            border: 1px solid transparent;
-            border-radius: 6px;
-            padding: 3px 8px;
-            color: #5b6470;
-            font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            justify-self: end;
-        }
-        .mageme-ecosystem__row-version--missing {
-            color: #94a3b8;
-            background: transparent;
-            border-color: transparent;
-        }
-
-        .mageme-ecosystem__row-status {
-            display: inline-flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 5px;
-            font-size: 12px;
-            font-weight: 500;
-            min-width: 110px;
-        }
-        .mageme-ecosystem__row-status--up { color: #047857; font-weight: 500; }
-        .mageme-ecosystem__row-status--update {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 8px;
-            border-radius: 6px;
-            background: #2563eb;
-            color: #ffffff;
-            font-weight: 600;
-            min-width: auto;
-        }
-        .mageme-ecosystem__row-status--missing { color: #94a3b8; }
-        .mageme-ecosystem__row-status a { color: inherit; text-decoration: none; }
-        .mageme-ecosystem__row-status a:hover { text-decoration: underline; }
-        .mageme-ecosystem__check-icon { flex: none; }
-
-        /* Tier badges — refined "code-editor token" style: rounded square (not pill) + 1px border for depth */
-        .mageme-ecosystem__tier {
-            display: inline-flex;
-            align-items: center;
-            height: 18px;
-            padding: 0 7px;
-            border-radius: 5px;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            text-transform: uppercase;
-            line-height: 1;
-        }
-        .mageme-ecosystem__tier--pro {
-            background: #e0e7ff;
-            color: #4338ca;
-            border: 1px solid #c7d2fe;
-        }
-        .mageme-ecosystem__tier--hyva {
-            background: #ede9fe;
-            color: #6d28d9;
-            border: 1px solid #ddd6fe;
-        }
-        .mageme-ecosystem__tier--breeze {
-            background: #ecfdf5;
-            color: #047857;
-            border: 1px solid #a7f3d0;
-        }
-
-        .mageme-modal {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Open Sans', 'Helvetica Neue', Arial, sans-serif !important;
-            background: #ffffff !important;
-            border: 1px solid #d1d5db !important;
-            border-radius: 16px !important;
-            padding: 32px 28px 24px !important;
-            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.08) !important;
-            width: 460px !important;
-            max-width: calc(100vw - 32px) !important;
-        }
-        .mageme-modal__container {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        .mageme-modal__icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 18px;
-            background: #fee2e2;
-            border: 1px solid #fca5a5;
-            border-radius: 50%;
-            color: #991b1b;
-        }
-        .mageme-modal__title {
-            text-align: center;
-            color: #1c1c1e;
-            font-size: 19px;
-            font-weight: 600;
-            letter-spacing: -0.01em;
-            margin: 0 0 14px;
-            line-height: 1.2;
-        }
-        .mageme-modal__body {
-            text-align: center;
-            color: #3c3c43;
-            font-size: 14px;
-            line-height: 1.55;
-            margin: 0;
-        }
-        .mageme-modal__body strong {
-            color: #991b1b;
-            font-weight: 700;
-        }
-        .mageme-modal__body a {
-            color: #2563eb;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .mageme-modal__body a:hover { text-decoration: underline; }
-        .mageme-modal__actions {
-            margin: 24px 0 0 !important;
-            gap: 8px;
-        }
-        .mageme-modal__btn {
-            display: inline-flex !important;
-            align-items: center;
-            justify-content: center;
-            height: 36px;
-            padding: 0 20px !important;
-            background: #ffffff;
-            border: 1px solid #d1d5db;
-            border-radius: 999px !important;
-            color: #3c3c43;
-            font-size: 13px;
-            font-weight: 500;
-            line-height: 1;
-            cursor: pointer;
-            transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-            box-shadow: none !important;
-        }
-        .mageme-modal__btn:hover {
-            background: #ececec;
-            border-color: #d1d5db;
-        }
-        .mageme-modal__btn:focus { outline: 2px solid #2563eb !important; outline-offset: 2px; }
-        .mageme-modal__btn--primary {
-            background: #2563eb !important;
-            border-color: #2563eb !important;
-            color: #ffffff !important;
-        }
-        .mageme-modal__btn--primary:hover {
-            background: #1d4ed8 !important;
-            border-color: #1d4ed8 !important;
-        }
-    </style>
-
-    <script>
-        {
-            const initEcosystemBlock = (root) => {
-                const sectionId = root.getAttribute('data-section-id') ?? '';
-                const key = `mageme_ecosystem.${sectionId}`;
-                let stored = null;
-                try { stored = window.localStorage.getItem(key); } catch (_) {}
-
-                const btn = root.querySelector('.mageme-ecosystem__toggle');
-                const body = root.querySelector('.mageme-ecosystem__body');
-                const header = root.querySelector('.mageme-ecosystem__header');
-                if (!btn || !body || !header) return;
-
-                const I18N_DEFAULTS = {
-                    until: 'Until %1', since: 'Since %1', nonProduction: 'Non-production',
-                    activate: 'Activate', deactivate: 'Deactivate',
-                    noLicenseHint: "Don't have a license?", getOne: 'Get one',
-                    connectError: "Can't connect to license server.",
-                    supportExpiredTitle: 'Support expired',
-                    supportExpiredBody: 'Your support window expired on %1.',
-                    renewHint: 'You can renew it from your account at %1',
-                    openMyLicenses: 'Open my licenses', close: 'Close'
-                };
-                let I18N = I18N_DEFAULTS;
-                try { I18N = { ...I18N_DEFAULTS, ...JSON.parse(root.getAttribute('data-i18n') || '{}') }; } catch (e) { /* keep defaults */ }
-                const STATE_TEXT = { active: '', dev: '', expired: '', inactive: '', unknown: '', ...(I18N.states || {}) };
-
-                const apply = (open) => {
-                    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-                    body.setAttribute('aria-hidden', open ? 'false' : 'true');
-                    body.classList.toggle('is-expanded', open);
-                };
-
-                if (stored === '1') apply(true);
-                else if (stored === '0') apply(false);
-
-                const toggle = () => {
-                    const next = btn.getAttribute('aria-expanded') !== 'true';
-                    apply(next);
-                    try { window.localStorage.setItem(key, next ? '1' : '0'); } catch (_) {}
-                };
-
-                // Click anywhere on the header toggles the block, except clicks on Docs/Support buttons
-                // (those follow their hrefs). The caret toggle is still clickable directly too.
-                header.addEventListener('click', (e) => {
-                    if (e.target.closest('.mageme-ecosystem__btn')) return;
-                    toggle();
-                });
-
-                const activateCta = root.querySelector('[data-mageme-activate-cta]');
-                if (activateCta) {
-                    activateCta.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!body.classList.contains('is-expanded')) apply(true);
-                        const input = root.querySelector('[data-mageme-license-serial]');
-                        if (!input) return;
-                        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        input.classList.remove('is-attention');
-                        void input.offsetWidth;
-                        input.classList.add('is-attention');
-                        setTimeout(() => input.focus({ preventScroll: true }), 320);
-                    });
-                }
-
-                const expiredBtn = root.querySelector('[data-mageme-support-expired]');
-                if (expiredBtn) {
-                    expiredBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const expiredDate = expiredBtn.getAttribute('data-expired-date') || '';
-                        const renewUrl = 'https://mageme.com/licenses/';
-                        const renewLink = `<a href="${renewUrl}" target="_blank" rel="noopener noreferrer">mageme.com/licenses/</a>`;
-                        const bodyExpired = I18N.supportExpiredBody.replace('%1', `<strong>${expiredDate}</strong>`);
-                        const bodyRenew = I18N.renewHint.replace('%1', renewLink);
-                        const html = `
-                            <div class="mageme-modal__icon" aria-hidden="true">
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            </div>
-                            <h2 class="mageme-modal__title">${I18N.supportExpiredTitle}</h2>
-                            <div class="mageme-modal__body">${bodyExpired}<br>${bodyRenew}</div>
-                        `;
-                        require(['swal'], (Swal) => {
-                            Swal.fire({
-                                html,
-                                showCancelButton: true,
-                                confirmButtonText: I18N.openMyLicenses,
-                                cancelButtonText: I18N.close,
-                                reverseButtons: true,
-                                buttonsStyling: false,
-                                customClass: {
-                                    popup: 'mageme-modal',
-                                    htmlContainer: 'mageme-modal__container',
-                                    actions: 'mageme-modal__actions',
-                                    confirmButton: 'mageme-modal__btn mageme-modal__btn--primary',
-                                    cancelButton: 'mageme-modal__btn',
-                                },
-                            }).then((result) => {
-                                if (result.isConfirmed) {
-                                    window.open(renewUrl, '_blank', 'noopener');
-                                }
-                            });
-                        });
-                    });
-                }
-
-                // === Copy serial to clipboard ===
-                const copyBtn = root.querySelector('[data-mageme-license-copy]');
-                if (copyBtn) {
-                    copyBtn.addEventListener('click', async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const input = root.querySelector('[data-mageme-license-serial]');
-                        const value = input?.value || '';
-                        if (!value) return;
-                        try {
-                            if (navigator.clipboard && window.isSecureContext) {
-                                await navigator.clipboard.writeText(value);
-                            } else {
-                                const wasReadonly = input.hasAttribute('readonly');
-                                input.removeAttribute('readonly');
-                                input.select();
-                                document.execCommand('copy');
-                                input.setSelectionRange(0, 0);
-                                if (wasReadonly) input.setAttribute('readonly', '');
-                            }
-                            copyBtn.classList.add('is-copied');
-                            setTimeout(() => copyBtn.classList.remove('is-copied'), 1400);
-                        } catch (_) { /* clipboard denied — no-op */ }
-                    });
-                }
-
-                // === License row ===
-                const license = root.querySelector('[data-mageme-license]');
-                if (license) {
-                    const serialInput = license.querySelector('[data-mageme-license-serial]');
-                    const toggleBtn = license.querySelector('[data-mageme-license-toggle]');
-                    const toggleLabel = toggleBtn?.querySelector('.mageme-ecosystem__license-btn-label');
-                    const messagesEl = license.parentElement.querySelector('[data-mageme-license-messages]');
-
-                    const ICONS = {
-                        'is-success': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
-                        'is-warning': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-                        'is-error':   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9"  x2="9"  y2="15"/><line x1="9"  y1="9"  x2="15" y2="15"/></svg>'
-                    };
-                    const renderMessages = ({ messages = [], warnings = [], errors = [] }) => {
-                        messagesEl.replaceChildren();
-                        const append = (list, cls) => list.forEach((m) => {
-                            const div = document.createElement('div');
-                            div.className = cls;
-                            div.innerHTML = ICONS[cls] + '<span></span>';
-                            div.querySelector('span').textContent = m;
-                            messagesEl.appendChild(div);
-                        });
-                        append(messages, 'is-success');
-                        append(warnings, 'is-warning');
-                        append(errors,   'is-error');
-                    };
-
-                    const STATE_LABELS = {
-                        active:   { primary: STATE_TEXT.active,   secondary: (d) => d ? I18N.until.replace('%1', d) : '' },
-                        dev:      { primary: STATE_TEXT.dev,      secondary: () => I18N.nonProduction },
-                        expired:  { primary: STATE_TEXT.expired,  secondary: (d) => d ? I18N.since.replace('%1', d) : '' },
-                        inactive: { primary: STATE_TEXT.inactive, secondary: () => '' },
-                        unknown:  { primary: STATE_TEXT.unknown,  secondary: () => '' }
-                    };
-                    const STATES = Object.keys(STATE_LABELS);
-
-                    const formatDate = (iso) => {
-                        if (!iso) return '';
-                        const d = new Date(iso + 'T00:00:00');
-                        if (isNaN(d)) return iso;
-                        return new Intl.DateTimeFormat(document.documentElement.lang || 'en', { dateStyle: 'medium' }).format(d);
-                    };
-
-                    const applyState = (statusData) => {
-                        const badge = license.querySelector('[data-mageme-license-status]');
-                        if (!badge) return;
-                        STATES.forEach((s) => badge.classList.remove(`is-${s}`));
-                        badge.classList.add(`is-${statusData.state}`);
-                        badge.dataset.state = statusData.state;
-                        const primary = badge.querySelector('.mageme-ecosystem__license-status-primary');
-                        const secondary = badge.querySelector('.mageme-ecosystem__license-status-secondary');
-                        const labels = STATE_LABELS[statusData.state] || STATE_LABELS.unknown;
-                        if (primary) primary.textContent = labels.primary;
-                        if (secondary) {
-                            const getOneUrl = badge.dataset.getOneUrl;
-                            const serialEmpty = !serialInput.value.trim();
-                            if (statusData.state === 'inactive' && getOneUrl && serialEmpty && !statusData.isActive) {
-                                secondary.textContent = '';
-                                secondary.appendChild(document.createTextNode(I18N.noLicenseHint + ' '));
-                                const getLink = document.createElement('a');
-                                getLink.href = getOneUrl;
-                                getLink.target = '_blank';
-                                getLink.rel = 'noopener noreferrer';
-                                getLink.textContent = I18N.getOne;
-                                secondary.appendChild(getLink);
-                            } else {
-                                secondary.textContent = labels.secondary(formatDate(statusData.validUntil));
-                            }
-                        }
-                        license.setAttribute('data-active', statusData.isActive ? '1' : '0');
-                        if (statusData.isActive) serialInput.setAttribute('readonly', '');
-                        else serialInput.removeAttribute('readonly');
-                        if (toggleLabel) toggleLabel.textContent = statusData.isActive ? I18N.deactivate : I18N.activate;
-                        const actions = root.querySelector('.mageme-ecosystem__actions');
-                        if (actions) actions.setAttribute('data-license-state', statusData.state);
-                        const expiredHeaderBtn = root.querySelector('[data-mageme-support-expired]');
-                        if (expiredHeaderBtn) expiredHeaderBtn.setAttribute('data-expired-date', formatDate(statusData.validUntil));
-                    };
-
-                    const refreshStatus = async () => {
-                        const badge = license.querySelector('[data-mageme-license-status]');
-                        const url = badge?.getAttribute('data-status-url');
-                        if (!url) return;
-                        try {
-                            const resp = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
-                            if (!resp.ok) return;
-                            const statusData = await resp.json();
-                            if (statusData.stale) return;
-                            applyState(statusData);
-                        } catch (_) {}
-                    };
-
-                    const sendRequest = async () => {
-                        const isActive = license.getAttribute('data-active') === '1';
-                        const url = isActive
-                            ? license.getAttribute('data-deactivate-url')
-                            : license.getAttribute('data-activate-url');
-                        const formKey = document.querySelector('input[name="form_key"]')?.value ?? '';
-                        const params = new URLSearchParams({
-                            form_key: formKey,
-                            serial: serialInput.value.trim(),
-                            license_section: license.getAttribute('data-license-section') ?? '',
-                            module_id: license.getAttribute('data-module-id') ?? '',
-                            module_name: license.getAttribute('data-module-name') ?? ''
-                        });
-                        document.body.dispatchEvent(new Event('processStart', { bubbles: true }));
-                        try {
-                            const resp = await fetch(url, {
-                                method: 'POST',
-                                credentials: 'same-origin',
-                                headers: {
-                                    'Accept': 'application/json',
-                                    'Content-Type': 'application/x-www-form-urlencoded'
-                                },
-                                body: params.toString()
-                            });
-                            const data = await resp.json().catch(() => ({}));
-                            renderMessages(data);
-                            if (data.status) applyState(data.status);
-                        } catch (_) {
-                            renderMessages({ errors: [I18N.connectError] });
-                        } finally {
-                            document.body.dispatchEvent(new Event('processStop', { bubbles: true }));
-                        }
-                    };
-
-                    refreshStatus();
-
-                    toggleBtn?.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        sendRequest();
-                    });
-                    serialInput?.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            sendRequest();
-                        }
-                    });
-                    serialInput?.addEventListener('click', (e) => e.stopPropagation());
-                }
-
-                // === Filter pills ===
-                const filterButtons = root.querySelectorAll('.mageme-ecosystem__filter');
-                if (filterButtons.length > 0) {
-                    const allRows = root.querySelectorAll('.mageme-ecosystem__row');
-                    const counts = { all: allRows.length, update: 0, installed: 0, 'not-installed': 0 };
-                    allRows.forEach((row) => {
-                        const status = row.getAttribute('data-status');
-                        if (status === 'update' || status === 'installed') counts.installed++;
-                        if (status === 'update') counts.update++;
-                        if (status === 'not-installed') counts['not-installed']++;
-                    });
-
-                    // Populate counts and disable empty filters
-                    filterButtons.forEach((fbtn) => {
-                        const filter = fbtn.getAttribute('data-filter');
-                        const countEl = fbtn.querySelector('.mageme-ecosystem__filter-count');
-                        const n = counts[filter] ?? 0;
-                        if (countEl) countEl.textContent = String(n);
-                        if (n === 0 && filter !== 'all') fbtn.setAttribute('data-empty', 'true');
-                    });
-
-                    const setActiveFilter = (filter) => {
-                        body.setAttribute('data-filter', filter);
-                        filterButtons.forEach((fbtn) => {
-                            const isActive = fbtn.getAttribute('data-filter') === filter;
-                            fbtn.classList.toggle('is-active', isActive);
-                            fbtn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-                        });
-                    };
-
-                    filterButtons.forEach((fbtn) => {
-                        const trigger = (e) => {
-                            e.stopPropagation();
-                            const filter = fbtn.getAttribute('data-filter') ?? 'all';
-                            setActiveFilter(filter);
-                        };
-                        fbtn.addEventListener('click', trigger);
-                        fbtn.addEventListener('keydown', (e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                trigger(e);
-                            }
-                        });
-                    });
-                }
-
-                // === Row description tooltip ===
-                const tooltipRows = root.querySelectorAll('[data-mageme-row-tooltip]');
-                if (tooltipRows.length > 0) {
-                    let tip = document.querySelector('.mageme-ecosystem-tooltip');
-                    if (!tip) {
-                        tip = document.createElement('div');
-                        tip.className = 'mageme-ecosystem-tooltip';
-                        tip.setAttribute('role', 'tooltip');
-                        document.body.appendChild(tip);
-                    }
-
-                    const positionTip = (row) => {
-                        const rect = row.getBoundingClientRect();
-                        const tipRect = tip.getBoundingClientRect();
-                        const margin = 10;
-                        const spaceAbove = rect.top;
-                        const placeTop = spaceAbove > tipRect.height + margin + 8;
-                        const top = placeTop
-                            ? rect.top - tipRect.height - margin
-                            : rect.bottom + margin;
-                        const idealLeft = rect.left + rect.width / 2 - tipRect.width / 2;
-                        const minLeft = 8;
-                        const maxLeft = window.innerWidth - tipRect.width - 8;
-                        const left = Math.max(minLeft, Math.min(maxLeft, idealLeft));
-                        const arrowX = (rect.left + rect.width / 2) - left;
-                        tip.style.top  = `${top}px`;
-                        tip.style.left = `${left}px`;
-                        tip.style.setProperty('--arrow-x', `${arrowX}px`);
-                        tip.dataset.placement = placeTop ? 'top' : 'bottom';
-                    };
-
-                    const showFor = (row) => {
-                        tip.textContent = row.dataset.description ?? '';
-                        tip.classList.add('is-visible');
-                        positionTip(row);
-                    };
-                    const hide = () => tip.classList.remove('is-visible');
-
-                    tooltipRows.forEach((row) => {
-                        row.addEventListener('mouseenter', () => showFor(row));
-                        row.addEventListener('mouseleave', hide);
-                        row.addEventListener('focusin',   () => showFor(row));
-                        row.addEventListener('focusout',  hide);
-                    });
-                    window.addEventListener('scroll', hide, { passive: true });
-                    window.addEventListener('resize', hide);
-                }
-            };
-
-            const hydrateEcosystemBlock = (root) => {
-                const renderUrl = root.getAttribute('data-ecosystem-render-url');
-                if (!renderUrl) return;
-                fetch(renderUrl, { method: 'GET', credentials: 'same-origin', headers: { Accept: 'text/html' } })
-                    .then((r) => r.ok ? r.text() : Promise.reject(new Error('render failed')))
-                    .then((html) => {
-                        const tmp = document.createElement('div');
-                        tmp.innerHTML = (html || '').trim();
-                        const newRoot = tmp.firstElementChild;
-                        if (newRoot && newRoot.matches('[data-mageme-ecosystem]')) {
-                            root.replaceWith(newRoot);
-                            initEcosystemBlock(newRoot);
-                        }
-                    })
-                    .catch(() => { /* keep server-rendered skeleton on failure */ });
-            };
-
-            const roots = document.querySelectorAll('[data-mageme-ecosystem]');
-            const anyNeedsRefresh = Array.from(roots).some((r) => r.getAttribute('data-needs-refresh') === '1');
-
-            if (!anyNeedsRefresh && roots[0]) {
-                const refreshUrl = roots[0].getAttribute('data-catalog-refresh-url');
-                if (refreshUrl) {
-                    fetch(refreshUrl, { method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' } })
-                        .catch(() => { /* fire-and-forget */ });
-                }
-            }
-
-            roots.forEach((root) => {
-                initEcosystemBlock(root);
-                if (root.getAttribute('data-needs-refresh') === '1') {
-                    hydrateEcosystemBlock(root);
-                }
-            });
-        }
-    </script>
 </div>

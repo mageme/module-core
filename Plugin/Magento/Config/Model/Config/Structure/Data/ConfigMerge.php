@@ -36,7 +36,9 @@ class ConfigMerge
      */
     public function beforeMerge(StructureData $object, array $config): array
     {
-        if (!isset($config['config']['system'])) {
+        if (!isset($config['config']['system']['sections'])
+            || !is_array($config['config']['system']['sections'])
+        ) {
             return [$config];
         }
 

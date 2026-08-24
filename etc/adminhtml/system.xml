@@ -5,5 +5,15 @@
         <tab id="mageme" translate="label" sortOrder="500" class="mageme-extensions">
             <label>MageMe Extensions</label>
         </tab>
+        <section id="mageme" translate="label" type="text" sortOrder="500" showInDefault="0">
+            <label>MageMe</label>
+            <group id="feed" translate="label" type="text" sortOrder="10" showInDefault="0">
+                <label>News Feed</label>
+                <field id="send_modules" translate="label" type="select" sortOrder="10" showInDefault="0">
+                    <label>Report Installed Extensions</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+            </group>
+        </section>
     </system>
 </config>

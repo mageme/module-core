@@ -40,6 +40,8 @@ class EcosystemRow
     public $tiers;
     /** @var string|null */
     public $subgroup;
+    /** @var string|null Upgrade link for an uninstalled paid add-on; null on every other row. */
+    public $proUrl;
 
     /** @param string[] $tiers */
     public function __construct(

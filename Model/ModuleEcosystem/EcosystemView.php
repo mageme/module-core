@@ -47,8 +47,10 @@ class EcosystemView
     public $showTierPills;
     /** @var string|null Composed renew URL, or null when not applicable. */
     public $renewUrl;
-    /** @var string|null Composed Get-Pro URL, or null when not applicable. */
+    /** @var string|null Composed Get-Pro URL for the header button, or null when not applicable. */
     public $getProUrl;
+    /** @var string|null Same destination as getProUrl, tagged as the plate CTA. */
+    public $proPlateUrl;
     /** @var string|null Raw purchase URL (ungated), for the "no licence yet" hint. */
     public $purchaseUrl;
     /** @var string|null One-click buy URL (deep-links to store cart), preferred over purchaseUrl when present. */
@@ -68,7 +70,8 @@ class EcosystemView
         ?string $renewUrl = null,
         ?string $getProUrl = null,
         ?string $purchaseUrl = null,
-        ?string $buyUrl = null
+        ?string $buyUrl = null,
+        ?string $proPlateUrl = null
     ) {
         $this->core              = $core;
         $this->addons            = $addons;
@@ -83,6 +86,7 @@ class EcosystemView
         $this->getProUrl         = $getProUrl;
         $this->purchaseUrl       = $purchaseUrl;
         $this->buyUrl            = $buyUrl;
+        $this->proPlateUrl       = $proPlateUrl !== null ? $proPlateUrl : $getProUrl;
     }
 
     /** Marketing product family name (e.g. "WebForms Suite"); falls back to core row name when not set. */

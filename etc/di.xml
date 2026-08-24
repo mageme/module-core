@@ -1,4 +1,31 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="MageMe\Core\Config\Feed">
+        <plugin name="mageme_core_feed_installation_profile"
+                type="MageMe\Core\Plugin\Config\FeedUrl"/>
+    </type>
+
+    <!--
+        Magento shares one Curl instance across everything that injects it, and cURL options set on it
+        persist for the rest of the request. Our callers set timeouts, a User-Agent and disable redirect
+        following; on a shared client those would apply to unrelated consumers, and theirs to ours.
+        Each gets its own non-shared client instead.
+    -->
+    <virtualType name="MageMeCoreHttpClient" type="Magento\Framework\HTTP\Client\Curl" shared="false"/>
+    <type name="MageMe\Core\Helper\GenericLicenseHelper">
+        <arguments>
+            <argument name="curl" xsi:type="object">MageMeCoreHttpClient</argument>
+        </arguments>
+    </type>
+    <type name="MageMe\Core\Helper\LicenseHelper">
+        <arguments>
+            <argument name="curl" xsi:type="object">MageMeCoreHttpClient</argument>
+        </arguments>
+    </type>
+    <type name="MageMe\Core\Model\ModuleEcosystem\RemoteCatalog">
+        <arguments>
+            <argument name="curl" xsi:type="object">MageMeCoreHttpClient</argument>
+        </arguments>
+    </type>
 </config>

@@ -1,0 +1,93 @@
+.mm-dialog {
+    width: min(600px, calc(100vw - 32px));
+    padding: 0;
+    border: none;
+    border-radius: 5px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .22);
+    color: #303030;
+}
+
+.mm-dialog--alert {
+    width: min(512px, calc(100vw - 32px));
+}
+
+.mm-dialog::backdrop {
+    background: rgba(0, 0, 0, .4);
+}
+
+.mm-dialog__content {
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.mm-dialog--alert .mm-dialog__content {
+    padding: 8px 0 4px;
+}
+
+/* SweetAlert2-style alert body */
+.mm-swal {
+    text-align: center;
+}
+
+.mm-swal__icon {
+    width: 80px;
+    height: 80px;
+    margin: 22px auto 6px;
+}
+
+.mm-swal__icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.mm-swal__icon--error {
+    color: #f27474;
+}
+
+.mm-swal__icon--success {
+    color: #a5dc86;
+}
+
+.mm-swal__icon--warning {
+    color: #f8bb86;
+}
+
+.mm-swal__icon--info {
+    color: #3fc3ee;
+}
+
+.mm-swal__title {
+    margin: 6px 0 0;
+    padding: 0 24px;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #595959;
+}
+
+.mm-swal__html {
+    margin: 14px 0 0;
+    padding: 0 28px;
+    font-size: 18px;
+    line-height: 1.5;
+    color: #545454;
+}
+
+.mm-swal__actions {
+    display: flex;
+    justify-content: center;
+    margin: 26px 0 22px;
+}
+
+.mm-dialog .mm-swal__confirm {
+    margin: 0;
+    min-width: 100px;
+    cursor: pointer;
+}
+
+.tingle-enabled {
+    overflow: hidden;
+}
+

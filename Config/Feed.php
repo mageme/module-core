@@ -20,6 +20,9 @@ declare(strict_types=1);
 
 namespace MageMe\Core\Config;
 
+use Laminas\Http\Request;
+use SimpleXMLElement;
+
 class Feed extends \Magento\AdminNotification\Model\Feed
 {
     public const MAGEME_FEED_URL = 'mageme.com/feeds/m2.rss';
@@ -31,11 +34,46 @@ class Feed extends \Magento\AdminNotification\Model\Feed
      */
     public function getFeedUrl(): string
     {
-        $httpPath = $this->_backendConfig->isSetFlag(self::XML_USE_HTTPS_PATH) ? 'https://' : 'http://';
         if ($this->_feedUrl === null) {
-            $this->_feedUrl = $httpPath . self::MAGEME_FEED_URL;
+            $this->_feedUrl = 'https://' . self::MAGEME_FEED_URL;
         }
         return $this->_feedUrl;
+    }
+
+    /**
+     * Retrieve feed data, discarding anything the server did not answer with a success status
+     *
+     * @return SimpleXMLElement|false
+     */
+    public function getFeedData()
+    {
+        $curl = $this->curlFactory->create();
+        $curl->setOptions(
+            [
+                'timeout'   => 2,
+                'useragent' => $this->productMetadata->getName()
+                    . '/' . $this->productMetadata->getVersion()
+                    . ' (' . $this->productMetadata->getEdition() . ')',
+                'referer'   => ''
+            ]
+        );
+        $curl->write(Request::METHOD_GET, $this->getFeedUrl(), '1.0');
+        $body   = $curl->read();
+        $status = (int)$curl->getInfo(CURLINFO_HTTP_CODE);
+        $curl->close();
+
+        if ($status < 200 || $status > 299) {
+            return false;
+        }
+
+        $parts = preg_split('/^\r?$/m', $body, 2);
+        $data  = trim($parts[1] ?? '');
+
+        try {
+            return new SimpleXMLElement($data);
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**

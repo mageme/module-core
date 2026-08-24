@@ -113,6 +113,11 @@ class ModuleEcosystem extends Template implements RendererInterface
         return $this->_authorization->isAllowed('MageMe_Core::license_view');
     }
 
+    public function canHydrate(): bool
+    {
+        return $this->_authorization->isAllowed('MageMe_Core::info');
+    }
+
     public function formatLicenseDate(?string $iso): string
     {
         if (!$iso) {
@@ -123,38 +128,5 @@ class ModuleEcosystem extends Template implements RendererInterface
             return $iso;
         }
         return $dt->format('M j, Y');
-    }
-
-    /**
-     * @return array{letter:string,gradient:string}
-     */
-    public function getMonogramTheme(string $coreModuleName): array
-    {
-        $palette = [
-            ['accent' => '#2563eb', 'deep' => '#1d4ed8'], // 0 brand blue
-            ['accent' => '#14b8a6', 'deep' => '#0d9488'], // 1 teal
-            ['accent' => '#f59e0b', 'deep' => '#d97706'], // 2 amber
-            ['accent' => '#3b82f6', 'deep' => '#1d4ed8'], // 3 blue
-            ['accent' => '#ec4899', 'deep' => '#be185d'], // 4 pink
-            ['accent' => '#10b981', 'deep' => '#047857'], // 5 emerald
-            ['accent' => '#0ea5e9', 'deep' => '#0369a1'], // 6 sky
-        ];
-        // Distinct colour per flagship suite (crc32 alone collides several
-        // popular suites onto one index); unknown modules fall back to a
-        // deterministic hash across the palette.
-        $map = [
-            'MageMe_WebForms'          => 0, // brand blue
-            'MageMe_HidePrice'         => 2, // amber
-            'MageMe_HidePricePro'      => 2, // amber
-            'MageMe_EUWithdrawal'      => 6, // sky
-            'MageMe_EasyQuote'         => 5, // emerald
-            'MageMe_ProductProtection' => 3, // blue
-        ];
-        $idx = $map[$coreModuleName] ?? (abs(crc32($coreModuleName)) % count($palette));
-        $theme = $palette[$idx];
-
-        return [
-            'gradient' => "linear-gradient(135deg, {$theme['accent']} 0%, {$theme['deep']} 100%)",
-        ];
     }
 }

@@ -25,4 +25,6 @@ class Status
     public const UP_TO_DATE        = 'up_to_date';
     public const UPDATE_AVAILABLE  = 'update_available';
     public const NOT_INSTALLED     = 'not_installed';
+    /** Installed, but the running suite major absorbed it — the merchant should remove it. */
+    public const SUPERSEDED        = 'superseded';
 }

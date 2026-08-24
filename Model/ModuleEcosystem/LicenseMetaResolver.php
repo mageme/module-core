@@ -43,6 +43,8 @@ class LicenseMetaResolver
     private $logger;
     /** @var DeclarationRegistry */
     private $registry;
+    /** @var AddonCompatibility */
+    private $addonCompatibility;
     /** @var array<string, LicenseMeta|null> */
     private $memo = [];
 
@@ -51,13 +53,15 @@ class LicenseMetaResolver
         ModuleManager $moduleManager,
         EditionDetector $editionDetector,
         LoggerInterface $logger,
-        DeclarationRegistry $registry
+        DeclarationRegistry $registry,
+        AddonCompatibility $addonCompatibility
     ) {
         $this->catalog         = $catalog;
         $this->moduleManager   = $moduleManager;
         $this->editionDetector = $editionDetector;
         $this->logger          = $logger;
         $this->registry        = $registry;
+        $this->addonCompatibility = $addonCompatibility;
     }
 
     public function resolveFor(string $coreModuleName): ?LicenseMeta
@@ -106,6 +110,8 @@ class LicenseMetaResolver
 
         if (!$isLicensed) {
             $addons = isset($entry['add-ons']) && is_array($entry['add-ons']) ? $entry['add-ons'] : [];
+            // An add-on the running major dropped must not keep a free suite marked as licensed.
+            $addons = $this->addonCompatibility->filterFor($coreModuleName, $addons);
             foreach ($addons as $addonName) {
                 if (!is_string($addonName) || $addonName === '') {
                     continue;

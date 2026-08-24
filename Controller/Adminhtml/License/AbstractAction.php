@@ -61,10 +61,10 @@ abstract class AbstractAction extends Action
     /**
      * Resolve license_section + owner_module_name from request.
      *
-     * Three cases:
-     *  - license_section + module_name (new JS, both attributes present)
-     *  - module_name only (old JS, cached browser): resolve license_section via catalog
-     *  - license_section only (theoretical): caller must also provide module_name; otherwise fail
+     * The section becomes a core_config_data path prefix, on read and on write, so it is never
+     * taken from the request on trust. The module the caller names is resolved to the section it
+     * owns; a section that came along with the request has to be that same one. A module with no
+     * license of its own resolves to nothing and the request goes no further.
      *
      * @return array{0: ?string, 1: ?string}
      */
@@ -73,17 +73,19 @@ abstract class AbstractAction extends Action
         $section    = (string)$this->getRequest()->getParam('license_section', '');
         $moduleName = (string)$this->getRequest()->getParam('module_name', '');
 
-        if ($section !== '' && $moduleName !== '') {
-            return [$section, $moduleName];
+        if ($moduleName === '') {
+            return [null, null];
         }
 
-        if ($moduleName !== '') {
-            $meta = $this->licenseMetaResolver->resolveFor($moduleName);
-            if ($meta !== null) {
-                return [$meta->licenseSection, $meta->ownerModuleName];
-            }
+        $meta = $this->licenseMetaResolver->resolveFor($moduleName);
+        if ($meta === null) {
+            return [null, null];
         }
 
-        return [null, null];
+        if ($section !== '' && $section !== $meta->licenseSection) {
+            return [null, null];
+        }
+
+        return [$meta->licenseSection, $meta->ownerModuleName];
     }
 }

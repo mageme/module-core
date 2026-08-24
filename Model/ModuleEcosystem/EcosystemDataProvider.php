@@ -44,6 +44,8 @@ class EcosystemDataProvider
     private $editionDetector;
     /** @var CtaLinkBuilder */
     private $ctaLinkBuilder;
+    /** @var AddonCompatibility */
+    private $addonCompatibility;
     /** @var array<string, EcosystemView> */
     private $memo = [];
 
@@ -55,7 +57,8 @@ class EcosystemDataProvider
         LicenseMetaResolver  $licenseMetaResolver,
         GenericLicenseHelper $genericLicenseHelper,
         EditionDetector      $editionDetector,
-        CtaLinkBuilder       $ctaLinkBuilder
+        CtaLinkBuilder       $ctaLinkBuilder,
+        AddonCompatibility   $addonCompatibility
     ) {
         $this->moduleList           = $moduleList;
         $this->catalog              = $catalog;
@@ -65,6 +68,7 @@ class EcosystemDataProvider
         $this->genericLicenseHelper = $genericLicenseHelper;
         $this->editionDetector      = $editionDetector;
         $this->ctaLinkBuilder       = $ctaLinkBuilder;
+        $this->addonCompatibility   = $addonCompatibility;
     }
 
     private function buildLicenseInfo(string $moduleName): LicenseInfo
@@ -128,12 +132,24 @@ class EcosystemDataProvider
         $core      = $this->buildRow($coreModuleName, $coreEntry, true);
 
         $addonNames = isset($coreEntry['add-ons']) && is_array($coreEntry['add-ons']) ? $coreEntry['add-ons'] : [];
+        // Filtered before anything is derived from it: counts, tier pills, subgroups and the
+        // Pro offer all read off this list.
+        $addonNames = $this->addonCompatibility->filterFor($coreModuleName, $addonNames);
         $addons     = [];
         foreach ($addonNames as $addonName) {
             if (!is_string($addonName) || $addonName === '') {
                 continue;
             }
             $addons[] = $this->buildRow($addonName, $this->catalog->get($addonName), false);
+        }
+
+        // An add-on the running major absorbed is still on disk, so it is listed — but as something
+        // to remove, not as a product. Marked before the update count so a stale 3.x add-on never
+        // advertises an upgrade the merchant must not install.
+        foreach ($addons as $row) {
+            if ($this->addonCompatibility->isSupersededFor($coreModuleName, $row->moduleName)) {
+                $row->status = Status::SUPERSEDED;
+            }
         }
 
         $updateCount = (int)$core->hasUpdate();
@@ -143,8 +159,30 @@ class EcosystemDataProvider
             }
         }
 
-        // Always collapsed by default; user toggle is persisted in localStorage and overrides this.
+        $coreTier = isset($coreEntry['tier']) && is_string($coreEntry['tier']) ? $coreEntry['tier'] : null;
+        $license  = $this->buildLicenseInfo($coreModuleName);
+
+        // Collapsed by default. Expanded only for a free suite with nothing paid resolved yet and
+        // at least one uninstalled Pro add-on — i.e. exactly when there is something to upgrade to
+        // and the collapsed header cannot say so. A paying customer is never opened into a list of
+        // add-ons they have not bought. The user toggle is persisted in localStorage and overrides this.
+        // The tier test deliberately mirrors CtaLinkBuilder::getProUrl() so that expanding and
+        // offering the upgrade can never disagree; both read the legacy `tier` string.
         $expanded = false;
+        foreach ($addons as $row) {
+            if ($row->status === Status::SUPERSEDED) {
+                $expanded = true;
+                break;
+            }
+        }
+        if (!$expanded && $coreTier === 'free' && !$license->supported) {
+            foreach ($addons as $row) {
+                if (!$row->isInstalled() && in_array('pro', $row->tiers, true)) {
+                    $expanded = true;
+                    break;
+                }
+            }
+        }
 
         $docsUrl     = $this->extractLinkUrl($coreEntry, ['Documentation', 'Docs', 'User Guide']);
         $supportUrl  = $this->extractLinkUrl($coreEntry, ['Support', 'Extension Support', 'Contact Support']);
@@ -155,7 +193,6 @@ class EcosystemDataProvider
         // Show row-level tier pills only for "mixed" suites: free core with at least one pro addon
         // (case B per LicenseMetaResolver). Uniform pro suites (WebForms, HidePricePro, EasyQuote)
         // and uniform free suites suppress per-row Pro/Free labels — they add no information.
-        $coreTier = isset($coreEntry['tier']) && is_string($coreEntry['tier']) ? $coreEntry['tier'] : null;
         $showTierPills = false;
         if ($coreTier === 'free') {
             foreach ($addonNames as $addonName) {
@@ -170,8 +207,23 @@ class EcosystemDataProvider
             }
         }
 
-        $license = $this->buildLicenseInfo($coreModuleName);
-        $cta     = $this->ctaLinkBuilder->build($coreEntry, $license);
+        $cta = $this->ctaLinkBuilder->build($coreEntry, $license, $expanded);
+
+        // Every uninstalled paid add-on gets its own tagged upgrade link, so the row a merchant
+        // clicked is visible in analytics instead of collapsing into one anonymous CTA.
+        if ($cta['getProUrl'] !== null) {
+            foreach ($addons as $addonRow) {
+                if (!$addonRow->isInstalled() && in_array('pro', $addonRow->tiers, true)) {
+                    $addonRow->proUrl = $this->ctaLinkBuilder->proUrlForRow(
+                        $coreEntry,
+                        $license,
+                        $expanded,
+                        $addonRow->moduleName,
+                        $this->catalog->get($addonRow->moduleName)
+                    );
+                }
+            }
+        }
 
         return $this->memo[$coreModuleName] = new EcosystemView(
             $core,
@@ -186,7 +238,8 @@ class EcosystemDataProvider
             $cta['renewUrl'],
             $cta['getProUrl'],
             $cta['purchaseUrl'],
-            $cta['buyUrl']
+            $cta['buyUrl'],
+            $cta['proPlateUrl']
         );
     }
 
