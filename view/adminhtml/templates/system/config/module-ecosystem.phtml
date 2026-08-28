@@ -267,7 +267,7 @@ $i18nLabels = [
 
     <?php
     $showTierPills = $view->showTierPills;
-    $renderRow = static function ($row) use ($escaper, $ICON_CHECK, $ICON_WARNING, $ICON_ROW_ARROW, $showTierPills) {
+    $renderRow = static function ($row) use ($escaper, $ICON_CHECK, $ICON_WARNING, $ICON_ROW_ARROW, $showTierPills, $offersPro) {
         $versionDisplay = $row->localVersion !== null ? 'v' . $row->localVersion : '—';
         $versionClass = $row->localVersion !== null
             ? 'mageme-ecosystem__row-version'
@@ -283,7 +283,9 @@ $i18nLabels = [
             $showWarning = true;
         } elseif ($row->status === Status::NOT_INSTALLED) {
             $statusClass = 'mageme-ecosystem__row-status mageme-ecosystem__row-status--missing';
-            $statusText  = in_array('pro', $row->tiers, true)
+            // Only where the panel is actually selling Pro — a paid suite has no tier to
+            // require, and a merchant who already owns Pro is simply missing the add-on.
+            $statusText  = $offersPro && in_array('pro', $row->tiers, true)
                 ? (string) __('Requires Pro')
                 : (string) __('Not installed');
         } else {

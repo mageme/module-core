@@ -1,3 +1,7 @@
+## 2.1.1
+
+- Fix: "Requires Pro" is no longer shown on add-ons of a paid extension, or to a store that already has Pro — those add-ons read as not installed
+
 ## 2.1.0
 
 + New: the module panel counts the Pro add-ons your product line offers and opens straight to them
