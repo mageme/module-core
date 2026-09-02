@@ -42,6 +42,31 @@
                 }
             });
             this.dialog.addEventListener('cancel', () => this.close());
+            this.dialog.addEventListener('close', () => {
+                if (!this.dialog.open) {
+                    this.teardown();
+                }
+            });
+            this.dialog.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    event.mmDialogPrevented = event.defaultPrevented;
+                }
+            });
+            this.onWindowKeydown = (event) => {
+                if (event.key !== 'Escape' || !this.isTopmost()) {
+                    return;
+                }
+                if (this.dialog.contains(event.target) && event.mmDialogPrevented) {
+                    return;
+                }
+                event.preventDefault();
+                this.close();
+            };
+        }
+
+        isTopmost() {
+            const open = document.querySelectorAll('dialog.mm-dialog[open]');
+            return open.length > 0 && open[open.length - 1] === this.dialog;
         }
 
         setContent(node) {
@@ -59,6 +84,7 @@
         }
 
         open() {
+            this.torndown = false;
             if (typeof this.opts.beforeOpen === 'function') {
                 this.opts.beforeOpen();
             }
@@ -69,6 +95,7 @@
             if (!this.dialog.open) {
                 this.dialog.showModal();
             }
+            window.addEventListener('keydown', this.onWindowKeydown);
             return this;
         }
 
@@ -76,6 +103,16 @@
             if (this.dialog.open) {
                 this.dialog.close();
             }
+            this.teardown();
+            return this;
+        }
+
+        teardown() {
+            if (this.torndown) {
+                return this;
+            }
+            this.torndown = true;
+            window.removeEventListener('keydown', this.onWindowKeydown);
             document.body.classList.remove(...cls('tingle-enabled', 'bodyOpen').split(' '));
             this.dialog.remove();
             if (typeof this.opts.onClose === 'function') {

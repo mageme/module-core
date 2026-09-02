@@ -22,7 +22,9 @@ namespace MageMe\Core\Model\Feed;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\DeploymentConfig;
+use Magento\Framework\App\State;
 use Magento\Framework\Config\ConfigOptionsListConstants;
+use Magento\Framework\FlagManager;
 use Magento\Framework\Module\ModuleListInterface;
 use Magento\Framework\Module\PackageInfo;
 
@@ -31,13 +33,19 @@ use Magento\Framework\Module\PackageInfo;
  */
 class InstallationProfile
 {
-    public const SCHEMA_VERSION = '1';
+    public const SCHEMA_VERSION = '2';
 
     public const XML_PATH_SEND_MODULES = 'mageme/feed/send_modules';
+
+    public const FLAG_INSTALLATION_ID = 'mageme_feed_installation_id';
 
     private const MODULE_PREFIXES = ['MageMe_', 'Hyva_MageMe'];
 
     private const BASE_URL_PATH = 'web/unsecure/base_url';
+
+    private const B2B_MODULE = 'Magento_Company';
+
+    private const ID_PATTERN = '/^[0-9a-f]{32}$/';
 
     /** @var ModuleListInterface */
     private ModuleListInterface $moduleList;
@@ -51,22 +59,34 @@ class InstallationProfile
     /** @var ScopeConfigInterface */
     private ScopeConfigInterface $scopeConfig;
 
+    /** @var FlagManager */
+    private FlagManager $flagManager;
+
+    /** @var State */
+    private State $appState;
+
     /**
      * @param ModuleListInterface $moduleList
      * @param PackageInfo $packageInfo
      * @param DeploymentConfig $deploymentConfig
      * @param ScopeConfigInterface $scopeConfig
+     * @param FlagManager $flagManager
+     * @param State $appState
      */
     public function __construct(
         ModuleListInterface  $moduleList,
         PackageInfo          $packageInfo,
         DeploymentConfig     $deploymentConfig,
-        ScopeConfigInterface $scopeConfig
+        ScopeConfigInterface $scopeConfig,
+        FlagManager          $flagManager,
+        State                $appState
     ) {
         $this->moduleList       = $moduleList;
         $this->packageInfo      = $packageInfo;
         $this->deploymentConfig = $deploymentConfig;
         $this->scopeConfig      = $scopeConfig;
+        $this->flagManager      = $flagManager;
+        $this->appState         = $appState;
     }
 
     /**
@@ -85,12 +105,64 @@ class InstallationProfile
             'm' => $this->getModules(),
         ];
 
+        $fingerprint = $this->getEnvironmentFingerprint();
+        if ($fingerprint !== null) {
+            $params['iid'] = $fingerprint;
+        }
+
         $installationId = $this->getInstallationId();
         if ($installationId !== null) {
-            $params['iid'] = $installationId;
+            $params['id'] = $installationId;
+        }
+
+        $params['mode'] = $this->appState->getMode();
+
+        if ($this->moduleList->has(self::B2B_MODULE)) {
+            $params['b2b'] = '1';
         }
 
         return $params;
+    }
+
+    /**
+     * Random installation identifier, generated once and kept in the flag table.
+     *
+     * The value sent is always the one read back from storage, so two requests that
+     * race on the first generation still report the same identifier.
+     *
+     * @return string|null
+     */
+    private function getInstallationId(): ?string
+    {
+        try {
+            $stored = $this->readInstallationId();
+            if ($stored !== null) {
+                return $stored;
+            }
+            try {
+                $this->flagManager->saveFlag(self::FLAG_INSTALLATION_ID, bin2hex(random_bytes(16)));
+            } catch (\Throwable $e) {
+                // a concurrent request may have won the write; the re-read below decides
+            }
+
+            return $this->readInstallationId();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * @return string|null
+     */
+    private function readInstallationId(): ?string
+    {
+        try {
+            $value = $this->flagManager->getFlagData(self::FLAG_INSTALLATION_ID);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return is_string($value) && preg_match(self::ID_PATTERN, $value) ? $value : null;
     }
 
     /**
@@ -105,12 +177,28 @@ class InstallationProfile
             if (!$this->isMageMeModule($name)) {
                 continue;
             }
-            $version   = (string)$this->packageInfo->getVersion($name);
+            $version   = $this->getModuleVersion($name);
             $modules[] = $version === '' ? $name : $name . ':' . $version;
         }
         sort($modules);
 
         return implode(',', $modules);
+    }
+
+    /**
+     * Module version from composer metadata, falling back to module.xml
+     *
+     * @param string $name
+     * @return string
+     */
+    private function getModuleVersion(string $name): string
+    {
+        $version = (string)$this->packageInfo->getVersion($name);
+        if ($version !== '') {
+            return $version;
+        }
+
+        return (string)($this->moduleList->getOne($name)['setup_version'] ?? '');
     }
 
     /**
@@ -131,11 +219,11 @@ class InstallationProfile
     }
 
     /**
-     * Irreversible installation identifier, empty when the install date is unavailable
+     * Irreversible environment fingerprint, empty when the install date is unavailable
      *
      * @return string|null
      */
-    private function getInstallationId(): ?string
+    private function getEnvironmentFingerprint(): ?string
     {
         $installDate = (string)$this->deploymentConfig->get(
             ConfigOptionsListConstants::CONFIG_PATH_INSTALL_DATE

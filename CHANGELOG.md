@@ -1,3 +1,9 @@
+## 2.1.2
+
+- Fix: closing a dialog with Esc or a click outside it now cleans up the page the same way as the close button, so it can be opened again
+- Fix: Esc closes the dialog on Luma product pages, where the image gallery used to swallow the key
+* Change: the admin news feed now reports a random installation identifier, the application mode and whether the B2B suite is enabled, and reads module versions from module.xml when composer.json has none — see README, "Data sent with the news feed"
+
 ## 2.1.1
 
 - Fix: "Requires Pro" is no longer shown on add-ons of a paid extension, or to a store that already has Pro — those add-ons read as not installed

@@ -20,13 +20,22 @@ Foundation module for all [MageMe extensions](https://mageme.com) for Magento 2.
 
 ## Data sent with the news feed
 
-The daily news-feed request carries the list of enabled MageMe modules with their versions, plus an irreversible installation identifier derived from the store's base URL and installation date. It tells us which extensions are actually in use and lets announcements be limited to those extensions. The store domain, customer data, and order data are never sent.
+The news-feed request (at most once an hour, and only while someone is using the admin panel) carries:
 
-To turn it off:
+- the list of enabled MageMe modules with their versions;
+- a random installation identifier, generated once on the first request and stored in the `flag` table — it is not derived from your domain or any other store data, and it lets us count installations rather than requests;
+- a pseudonymous fingerprint of the environment (a truncated hash of the base URL and installation date) — together with the identifier it shows when a store changes its domain or is copied to staging;
+- the application mode (production, developer or default) and whether the `Magento_Company` module (the B2B suite) is enabled.
+
+It tells us which extensions and versions are actually in use and lets announcements be limited to those extensions. The store domain, customer data, and order data are never sent. On our side the raw web-server logs are kept for 52 days; the aggregated statistics contain no IP addresses.
+
+To turn it off (nothing is sent and no identifier is generated):
 
 ```bash
 bin/magento config:set mageme/feed/send_modules 0
 ```
+
+The identifier stays in the `flag` table if the module is removed; delete the `mageme_feed_installation_id` row to drop it.
 
 ## Requirements
 
