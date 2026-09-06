@@ -57,14 +57,14 @@ bin/magento cache:flush
 
 [**MageMe WebForms 3**](https://mageme.com/magento-2-form-builder.html) — Magento 2 form builder with conditional fields, multi-step layouts, file uploads, approval workflows, and a full integration stack:
 
-- [Salesforce](https://github.com/mageme/module-webforms-3-salesforce) — create leads with campaign tracking
-- [HubSpot](https://github.com/mageme/module-webforms-3-hubspot) — sync contacts, companies, and tickets
-- [Zoho CRM & Desk](https://github.com/mageme/module-webforms-3-zoho) — create leads and helpdesk tickets
-- [Freshdesk](https://github.com/mageme/module-webforms-3-freshdesk) — support tickets with agent routing
-- [Zendesk](https://github.com/mageme/module-webforms-3-zendesk) — tickets with custom field types
-- [Klaviyo](https://github.com/mageme/module-webforms-3-klaviyo) — profiles and email lists
-- [Mailchimp](https://github.com/mageme/module-webforms-3-mailchimp) — audience subscriptions
-- [Zapier](https://github.com/mageme/module-webforms-3-zapier) — connect forms to 7000+ apps
+- Salesforce — create leads with campaign tracking
+- HubSpot — sync contacts, companies, and tickets
+- Zoho CRM & Desk — create leads and helpdesk tickets
+- Freshdesk — support tickets with agent routing
+- Zendesk — tickets with custom field types
+- Klaviyo — profiles and email lists
+- Mailchimp — audience subscriptions
+- Zapier — connect forms to 7000+ apps
 
 [**MageMe Hide Price**](https://mageme.com/magento-2-hide-price-extension.html) — control catalog visibility. Hide prices and the Add to Cart button from specific customer groups or per-product, with optional replacements: a sign-in button, an info alert, or a Request a Price form that emails the admin and the customer.
 

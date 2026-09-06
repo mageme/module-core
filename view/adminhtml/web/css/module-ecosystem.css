@@ -3,8 +3,8 @@
  * Loaded on Stores > Configuration only (layout adminhtml_system_config_edit); every rule is
  * scoped to .mageme-ecosystem so nothing bleeds into the surrounding admin form.
  *
- * Plain CSS in a .less file on purpose: no variables or mixins are needed, and keeping the
- * extension .less lets it go through the same pipeline as the rest of the admin styles.
+ * Plain CSS on purpose: the panel relies on container queries, which the LESS compiler bundled
+ * with Magento does not parse, so this file must stay out of the LESS pipeline.
  */
 
 /* Scoped to .mageme-ecosystem to avoid bleed — Inter / monogram redesign.

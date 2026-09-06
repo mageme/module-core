@@ -1,3 +1,7 @@
+## 2.1.3
+
+- Fix: static content deploy no longer fails on Magento versions whose LESS compiler does not understand container queries — the module panel stylesheet now ships as plain CSS
+
 ## 2.1.2
 
 - Fix: closing a dialog with Esc or a click outside it now cleans up the page the same way as the close button, so it can be opened again
