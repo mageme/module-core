@@ -1,3 +1,7 @@
+## 2.1.4
+
+- Fix: on older Magento 2.4 versions (such as 2.4.2) admin pages failed with a curl_setopt() error when the MageMe news feed was checked
+
 ## 2.1.3
 
 - Fix: static content deploy no longer fails on Magento versions whose LESS compiler does not understand container queries — the module panel stylesheet now ships as plain CSS

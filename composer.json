@@ -2,7 +2,7 @@
     "name": "mageme/module-core",
     "description": "Core foundation module for MageMe extensions providing license management, admin UI infrastructure, and shared utilities",
     "type": "magento2-module",
-    "version": "2.1.3",
+    "version": "2.1.4",
     "license": "proprietary",
     "authors": [
         {

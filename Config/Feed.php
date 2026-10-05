@@ -50,11 +50,11 @@ class Feed extends \Magento\AdminNotification\Model\Feed
         $curl = $this->curlFactory->create();
         $curl->setOptions(
             [
-                'timeout'   => 2,
-                'useragent' => $this->productMetadata->getName()
+                CURLOPT_TIMEOUT   => 2,
+                CURLOPT_USERAGENT => $this->productMetadata->getName()
                     . '/' . $this->productMetadata->getVersion()
                     . ' (' . $this->productMetadata->getEdition() . ')',
-                'referer'   => ''
+                CURLOPT_REFERER   => ''
             ]
         );
         $curl->write(Request::METHOD_GET, $this->getFeedUrl(), '1.0');
