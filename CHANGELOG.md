@@ -1,3 +1,12 @@
+## 2.2.1
+
++ New: MageMe.loader.addCss returns a promise that settles once the stylesheet has loaded or failed, or after 3 seconds
++ New: MageMe.loader.cssArrivedLate signals a stylesheet that loaded after addCss stopped waiting
+- Fix: the dialog shows the Question icon
+- Fix: no focus outline around the dialog itself when it opens (Luma, Breeze)
+- Fix: sticky elements on the page stay in place while a dialog is open
+* Change: license updated to MageMe EULA v6
+
 ## 2.2.0
 
 + New: a shared announcement line for MageMe admin grids shows the newest unread MageMe message under the page title, with a dismiss for roles allowed to mark notifications read

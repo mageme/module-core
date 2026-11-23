@@ -145,7 +145,8 @@
         error: '<path d="M29 29 51 51M51 29 29 51" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>',
         success: '<path d="M25 41 36 52 56 28" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>',
         warning: '<path d="M40 22v25" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><circle cx="40" cy="58" r="3.2" fill="currentColor"/>',
-        info: '<circle cx="40" cy="24" r="3.2" fill="currentColor"/><path d="M40 34v24" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>'
+        info: '<circle cx="40" cy="24" r="3.2" fill="currentColor"/><path d="M40 34v24" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>',
+        question: '<path d="M31 31a9 9 0 1 1 13.5 7.8C41.6 40.5 40 42.6 40 46.5" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="40" cy="58" r="3.2" fill="currentColor"/>'
     };
 
     const iconSvg = (type) => {

@@ -3,6 +3,9 @@
     if (typeof window.MageMe !== 'object') {
         window.MageMe = {};
     }
+    const cssReady = new WeakMap();
+    const cssLate = new WeakMap();
+    const pending = new Promise(() => {});
     window.MageMe.loader = {
 
         /**
@@ -69,16 +72,55 @@
         /**
          * A function that adds a CSS file to the document if it's not already included.
          *
+         * The returned promise settles once the file has loaded or failed, or after 3 seconds, and never
+         * rejects, so a caller that measures styled elements can wait for it without hanging on a stalled
+         * request. A file this loader did not add counts as ready.
+         *
          * @param {string} ref - the reference to the CSS file to be added
+         * @return {Promise<void>}
          */
         addCss: (ref) => {
-            if (document.querySelector('link[href="' + ref + '"]')) {
-                return;
+            const existing = document.querySelector('link[href="' + ref + '"]');
+            if (existing) {
+                return cssReady.get(existing) || Promise.resolve();
             }
             const css = document.createElement("link");
             css.rel = "stylesheet";
             css.href = ref;
+            let gaveUp = false;
+            let arrivedLate;
+            cssLate.set(css, new Promise((resolve) => {
+                arrivedLate = resolve;
+            }));
+            const ready = new Promise((resolve) => {
+                css.addEventListener('load', () => {
+                    if (gaveUp) {
+                        arrivedLate();
+                    }
+                    resolve();
+                }, {once: true});
+                css.addEventListener('error', () => resolve(), {once: true});
+                setTimeout(() => {
+                    gaveUp = true;
+                    resolve();
+                }, 3000);
+            });
+            cssReady.set(css, ready);
             document.head.appendChild(css);
+            return ready;
+        },
+
+        /**
+         * Settles when a stylesheet added by addCss loads after its promise has already settled on the
+         * 3-second limit, so a caller that measured unstyled elements then can measure them again. Stays
+         * pending when the file loaded in time, failed, or was not added by addCss.
+         *
+         * @param {string} ref - the reference passed to addCss
+         * @return {Promise<void>}
+         */
+        cssArrivedLate: (ref) => {
+            const existing = document.querySelector('link[href="' + ref + '"]');
+            return (existing && cssLate.get(existing)) || pending;
         },
 
         /**

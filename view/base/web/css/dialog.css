@@ -7,8 +7,19 @@
     color: #303030;
 }
 
+.mm-dialog:focus {
+    outline: none;
+}
+
 .mm-dialog--alert {
     width: min(512px, calc(100vw - 32px));
+}
+
+/* dialog.js clips the root while a dialog is open; a body that keeps a theme's own overflow would become
+   a scroll box of its own under it and carry sticky elements off screen. The html prefix outweighs a theme's
+   body.<class> rule, which may load after this sheet. */
+html body.tingle-enabled {
+    overflow: visible;
 }
 
 .mm-dialog::backdrop {
@@ -58,6 +69,10 @@
     color: #3fc3ee;
 }
 
+.mm-swal__icon--question {
+    color: #87adbd;
+}
+
 .mm-swal__title {
     margin: 6px 0 0;
     padding: 0 24px;
@@ -89,9 +104,5 @@
     margin: 0;
     min-width: 100px;
     cursor: pointer;
-}
-
-.tingle-enabled {
-    overflow: hidden;
 }
 
