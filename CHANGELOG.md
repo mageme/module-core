@@ -1,3 +1,7 @@
+## 2.2.2
+
+- Fix: opening a dialog no longer scrolls the page to the top on a store that also runs EasyQuote 1.7.3 or older, or HidePrice Pro 3.1.3 or older
+
 ## 2.2.1
 
 + New: MageMe.loader.addCss returns a promise that settles once the stylesheet has loaded or failed, or after 3 seconds

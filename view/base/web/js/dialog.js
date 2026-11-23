@@ -100,7 +100,7 @@
                 rootOverflow = document.documentElement.style.overflow;
                 document.documentElement.style.overflow = 'hidden';
             }
-            document.body.classList.add(...cls('tingle-enabled', 'bodyOpen').split(' '));
+            document.body.classList.add(...cls('mm-dialog-open', 'bodyOpen').split(' '));
             if (!this.dialog.open) {
                 this.dialog.showModal();
             }
@@ -125,7 +125,7 @@
             this.dialog.remove();
             // a dialog opened over another one leaves the page locked for the one still open
             if (!document.querySelector('dialog.mm-dialog[open]')) {
-                document.body.classList.remove(...cls('tingle-enabled', 'bodyOpen').split(' '));
+                document.body.classList.remove(...cls('mm-dialog-open', 'bodyOpen').split(' '));
                 document.documentElement.style.overflow = rootOverflow;
             }
             // A tabindex="-1" landing zone (skip-link target, content wrapper) is not a control the

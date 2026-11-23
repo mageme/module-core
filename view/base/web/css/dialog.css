@@ -18,7 +18,7 @@
 /* dialog.js clips the root while a dialog is open; a body that keeps a theme's own overflow would become
    a scroll box of its own under it and carry sticky elements off screen. The html prefix outweighs a theme's
    body.<class> rule, which may load after this sheet. */
-html body.tingle-enabled {
+html body.mm-dialog-open {
     overflow: visible;
 }
 
